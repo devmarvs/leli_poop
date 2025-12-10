@@ -256,6 +256,22 @@ function resetGame() {
     requestAnimationFrame(gameLoop);
 }
 
+function handleTilt(e) {
+    const tilt = e.gamma; // Left/Right tilt in degrees (-90 to 90)
+
+    // Deadzone of +/- 5 degrees
+    if (tilt < -5) {
+        keys.ArrowLeft = true;
+        keys.ArrowRight = false;
+    } else if (tilt > 5) {
+        keys.ArrowRight = true;
+        keys.ArrowLeft = false;
+    } else {
+        keys.ArrowLeft = false;
+        keys.ArrowRight = false;
+    }
+}
+
 document.getElementById('start-btn').addEventListener('click', startGame);
 document.getElementById('restart-btn').addEventListener('click', resetGame);
 
