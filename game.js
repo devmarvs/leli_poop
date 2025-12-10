@@ -203,6 +203,7 @@ let particles = [];
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
 let audioUnlocked = false;
+let audioReadyPromise = null;
 
 // Check if we're on iOS
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -216,6 +217,11 @@ function initAudioContext() {
         audioCtx = new AudioContext();
         console.log('AudioContext created, state:', audioCtx.state);
         audioUnlocked = audioCtx.state === 'running';
+        audioCtx.onstatechange = () => {
+            if (audioCtx.state === 'running') {
+                audioUnlocked = true;
+            }
+        };
     } catch (e) {
         console.warn('AudioContext not available:', e);
     }
@@ -229,43 +235,7 @@ if (!isIOS) {
 
 // Unlock/resume audio - call this on user interaction
 function unlockAudio() {
-    if (audioUnlocked && audioCtx && audioCtx.state === 'running') return;
-
-    if (!audioCtx) {
-        initAudioContext();
-    }
-
-    if (!audioCtx) return;
-
-    try {
-        // A one-sample buffer is the most reliable way to unlock iOS audio.
-        const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-        const source = audioCtx.createBufferSource();
-        source.buffer = buffer;
-        const gain = audioCtx.createGain();
-        gain.gain.value = 0.0001;
-        source.connect(gain);
-        gain.connect(audioCtx.destination);
-        source.start(0);
-        source.onended = () => {
-            if (audioCtx.state === 'running') {
-                audioUnlocked = true;
-            }
-        };
-    } catch (e) {
-        console.warn('Silent unlock failed:', e);
-    }
-
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume().then(() => {
-            if (audioCtx.state === 'running') {
-                audioUnlocked = true;
-                console.log('AudioContext resumed after unlock.');
-            }
-        }).catch((e) => console.warn('Resume failed:', e));
-    } else if (audioCtx.state === 'running') {
-        audioUnlocked = true;
-    }
+    ensureAudioReady();
 }
 
 // Add unlock listeners for various user interactions
@@ -278,21 +248,79 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-function ensureAudioReady() {
-    unlockAudio();
-    return audioCtx && audioCtx.state === 'running';
+async function ensureAudioReady() {
+    if (audioUnlocked && audioCtx && audioCtx.state === 'running') return true;
+
+    if (audioReadyPromise) return audioReadyPromise;
+
+    audioReadyPromise = (async () => {
+        if (!audioCtx) {
+            initAudioContext();
+        }
+
+        if (!audioCtx) return false;
+
+        if (audioCtx.state === 'suspended') {
+            try {
+                await audioCtx.resume();
+            } catch (e) {
+                console.warn('Resume failed:', e);
+            }
+        }
+
+        try {
+            // A one-sample buffer is the most reliable way to unlock iOS audio.
+            const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.0001;
+            source.connect(gain);
+            gain.connect(audioCtx.destination);
+            source.start(0);
+            await new Promise(resolve => source.onended = resolve);
+        } catch (e) {
+            console.warn('Silent unlock failed:', e);
+        }
+
+        if (audioCtx.state === 'suspended') {
+            try {
+                await audioCtx.resume();
+            } catch (e) {
+                console.warn('Resume after silent unlock failed:', e);
+            }
+        }
+
+        audioUnlocked = audioCtx.state === 'running';
+        return audioUnlocked;
+    })();
+
+    audioReadyPromise.finally(() => {
+        audioReadyPromise = null;
+    });
+
+    return audioReadyPromise;
+}
+
+function withAudioReady(callback) {
+    ensureAudioReady().then(ready => {
+        if (!ready) return;
+        try {
+            callback();
+        } catch (e) {
+            console.warn('Sound playback error:', e);
+        }
+    });
 }
 
 const SoundManager = {
     // Helper to check if audio is ready; attempts to unlock if suspended
     isReady: function () {
-        return ensureAudioReady();
+        return audioUnlocked && audioCtx && audioCtx.state === 'running';
     },
 
     playPoop: function () {
-        if (!this.isReady()) return;
-
-        try {
+        withAudioReady(() => {
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
@@ -308,15 +336,11 @@ const SoundManager = {
 
             osc.start();
             osc.stop(audioCtx.currentTime + 0.5);
-        } catch (e) {
-            console.warn('playPoop error:', e);
-        }
+        });
     },
 
     playSplat: function () {
-        if (!this.isReady()) return;
-
-        try {
+        withAudioReady(() => {
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
@@ -332,15 +356,11 @@ const SoundManager = {
 
             osc.start();
             osc.stop(audioCtx.currentTime + 0.2);
-        } catch (e) {
-            console.warn('playSplat error:', e);
-        }
+        });
     },
 
     playGameOver: function () {
-        if (!this.isReady()) return;
-
-        try {
+        withAudioReady(() => {
             const now = audioCtx.currentTime;
 
             [
@@ -368,9 +388,7 @@ const SoundManager = {
                 osc.start(now + note.time);
                 osc.stop(now + note.time + note.dur);
             });
-        } catch (e) {
-            console.warn('playGameOver error:', e);
-        }
+        });
     }
 };
 
