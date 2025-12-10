@@ -201,11 +201,26 @@ let particles = [];
 
 // Sound Manager using Web Audio API
 const AudioContext = window.AudioContext || window.webkitAudioContext;
-const audioCtx = new AudioContext();
+let audioCtx;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    // Play silent buffer to unlock iOS
+    const buffer = audioCtx.createBuffer(1, 1, 22050);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
+}
 
 const SoundManager = {
     playPoop: function () {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (!audioCtx) return; // Audio not initialized yet
         const osc = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
 
@@ -224,7 +239,7 @@ const SoundManager = {
     },
 
     playSplat: function () {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
 
@@ -244,7 +259,7 @@ const SoundManager = {
     },
 
     playGameOver: function () {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (!audioCtx) return;
 
         const now = audioCtx.currentTime;
 
@@ -323,11 +338,7 @@ function triggerGameOver() {
 // Game Flow Control
 function startGame() {
     // Unlock AudioContext for Mobile (must be in user interaction)
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume().then(() => {
-            console.log('AudioContext resumed successfully');
-        });
-    }
+    initAudio();
 
     isGameStarted = true;
     document.getElementById('welcome-screen').classList.add('hidden');
