@@ -100,6 +100,16 @@ canvas {
     }
 }
 
+.gameover-image {
+    width: 120px;
+    height: auto;
+    border-radius: 50%;
+    border: 2px solid var(--neon-pink);
+    box-shadow: 0 0 15px var(--neon-pink);
+    margin: 15px auto;
+    display: block;
+}
+
 #game-over.hidden,
 #welcome-screen.hidden {
     display: none;

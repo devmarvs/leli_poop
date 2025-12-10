@@ -4,7 +4,8 @@ const ASSETS = [
     './index.html',
     './style.css',
     './game.js',
-    './assets/leli.png'
+    './assets/leli.png',
+    './assets/leli-sad.jpg'
 ];
 
 self.addEventListener('install', (e) => {
