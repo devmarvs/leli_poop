@@ -202,122 +202,157 @@ let particles = [];
 // Sound Manager using Web Audio API
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
-let audioUnlocked = false;
 
-// Create AudioContext immediately (will be suspended on mobile until user interaction)
-try {
-    audioCtx = new AudioContext();
-} catch (e) {
-    console.warn('AudioContext not available:', e);
-}
+// Check if we're on iOS
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-// Unlock audio on user interaction (critical for iOS)
-function unlockAudio() {
-    if (audioUnlocked || !audioCtx) return;
+// Initialize AudioContext (on iOS, it MUST be created in user gesture)
+function initAudioContext() {
+    if (audioCtx) return audioCtx;
 
-    // Resume if suspended (this is what iOS needs)
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume().then(() => {
-            console.log('AudioContext resumed');
-        }).catch(e => {
-            console.warn('AudioContext resume failed:', e);
-        });
-    }
-
-    // Play a silent buffer to fully unlock on iOS
     try {
-        const buffer = audioCtx.createBuffer(1, 1, 22050);
-        const source = audioCtx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioCtx.destination);
-        source.start(0);
+        audioCtx = new AudioContext();
+        console.log('AudioContext created, state:', audioCtx.state);
     } catch (e) {
-        // Ignore
+        console.warn('AudioContext not available:', e);
     }
-
-    audioUnlocked = true;
+    return audioCtx;
 }
 
-// Add early unlock listeners
+// For non-iOS, create context immediately
+if (!isIOS) {
+    initAudioContext();
+}
+
+// Unlock/resume audio - call this on user interaction
+async function unlockAudio() {
+    // Create context if needed (for iOS, this must happen in user gesture)
+    if (!audioCtx) {
+        initAudioContext();
+    }
+
+    if (!audioCtx) return;
+
+    // Resume if suspended
+    if (audioCtx.state === 'suspended') {
+        try {
+            await audioCtx.resume();
+            console.log('AudioContext resumed, state:', audioCtx.state);
+        } catch (e) {
+            console.warn('Resume failed:', e);
+        }
+    }
+
+    // Play silent sound to fully unlock iOS
+    if (audioCtx.state === 'running') {
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.001; // Nearly silent
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(0);
+            osc.stop(audioCtx.currentTime + 0.01);
+        } catch (e) {
+            // Ignore
+        }
+    }
+}
+
+// Add unlock listeners for various user interactions
 ['touchstart', 'touchend', 'mousedown', 'click', 'keydown'].forEach(event => {
-    document.addEventListener(event, unlockAudio, { once: true, passive: true });
+    document.addEventListener(event, unlockAudio, { passive: true });
 });
 
 const SoundManager = {
+    // Helper to check if audio is ready
+    isReady: function () {
+        return audioCtx && audioCtx.state === 'running';
+    },
+
     playPoop: function () {
-        if (!audioCtx) return; // Audio not initialized yet
-        const osc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
+        if (!this.isReady()) return;
 
-        osc.frequency.value = 300;
-        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
-        osc.type = 'sawtooth';
-
-        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-
-        osc.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.5);
-    },
-
-    playSplat: function () {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        // Squishy sound: rapid frequency modulation
-        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.1);
-        osc.type = 'triangle';
-
-        gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-
-        osc.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.2);
-    },
-
-    playGameOver: function () {
-        if (!audioCtx) return;
-
-        const now = audioCtx.currentTime;
-
-        // Simple retro "Death" melody (approximate Mario-ish vibe)
-        // Notes: C5 -> G4 -> E4 -> A3 -> B3 -> A3 -> G3# -> A3# -> G3# -> G3 (Just a descending crash)
-        // Let's do a quick descending arpeggio
-
-        [
-            { freq: 523.25, time: 0.0, dur: 0.1 }, // C5
-            { freq: 392.00, time: 0.1, dur: 0.1 }, // G4
-            { freq: 329.63, time: 0.2, dur: 0.1 }, // E4
-
-            { freq: 220.00, time: 0.35, dur: 0.15 }, // A3
-            { freq: 246.94, time: 0.5, dur: 0.15 }, // B3
-            { freq: 220.00, time: 0.65, dur: 0.15 }, // A3
-            { freq: 207.65, time: 0.8, dur: 0.15 }, // Ab3
-            { freq: 196.00, time: 0.95, dur: 0.4 }, // G3
-        ].forEach(note => {
+        try {
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
-            osc.type = 'square'; // retro 8-bit sound
-            osc.frequency.value = note.freq;
+            osc.frequency.value = 300;
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+            osc.type = 'sawtooth';
 
-            gainNode.gain.setValueAtTime(0.3, now + note.time);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + note.time + note.dur);
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
 
             osc.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
-            osc.start(now + note.time);
-            osc.stop(now + note.time + note.dur);
-        });
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        } catch (e) {
+            console.warn('playPoop error:', e);
+        }
+    },
+
+    playSplat: function () {
+        if (!this.isReady()) return;
+
+        try {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            osc.type = 'triangle';
+
+            gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        } catch (e) {
+            console.warn('playSplat error:', e);
+        }
+    },
+
+    playGameOver: function () {
+        if (!this.isReady()) return;
+
+        try {
+            const now = audioCtx.currentTime;
+
+            [
+                { freq: 523.25, time: 0.0, dur: 0.1 },
+                { freq: 392.00, time: 0.1, dur: 0.1 },
+                { freq: 329.63, time: 0.2, dur: 0.1 },
+                { freq: 220.00, time: 0.35, dur: 0.15 },
+                { freq: 246.94, time: 0.5, dur: 0.15 },
+                { freq: 220.00, time: 0.65, dur: 0.15 },
+                { freq: 207.65, time: 0.8, dur: 0.15 },
+                { freq: 196.00, time: 0.95, dur: 0.4 },
+            ].forEach(note => {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                osc.type = 'square';
+                osc.frequency.value = note.freq;
+
+                gainNode.gain.setValueAtTime(0.3, now + note.time);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + note.time + note.dur);
+
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                osc.start(now + note.time);
+                osc.stop(now + note.time + note.dur);
+            });
+        } catch (e) {
+            console.warn('playGameOver error:', e);
+        }
     }
 };
 
