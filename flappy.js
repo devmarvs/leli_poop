@@ -155,30 +155,34 @@ const FlappyGame = {
     checkCollisions: function () {
         const bird = this.bird;
 
+        // Use circular hitbox (center of bird, with smaller radius for forgiveness)
+        const birdCenterX = bird.x + bird.width / 2;
+        const birdCenterY = bird.y + bird.height / 2;
+        const birdRadius = bird.width / 2 - 8; // Smaller than visual for forgiveness
+
         // Ground/ceiling collision
-        if (bird.y < 0 || bird.y + bird.height > this.canvas.height) {
+        if (birdCenterY - birdRadius < 0 || birdCenterY + birdRadius > this.canvas.height) {
             this.gameOver();
             return;
         }
 
-        // Pipe collision
+        // Pipe collision using circle
         for (const pipe of this.pipes) {
-            // Bird hitbox (slightly smaller than visual)
-            const birdLeft = bird.x + 5;
-            const birdRight = bird.x + bird.width - 5;
-            const birdTop = bird.y + 5;
-            const birdBottom = bird.y + bird.height - 5;
-
-            // Pipe bounds
             const pipeLeft = pipe.x;
             const pipeRight = pipe.x + this.PIPE_WIDTH;
             const gapTop = pipe.gapY;
             const gapBottom = pipe.gapY + this.PIPE_GAP;
 
-            // Check if bird is within pipe x range
-            if (birdRight > pipeLeft && birdLeft < pipeRight) {
-                // Check if bird is outside gap
-                if (birdTop < gapTop || birdBottom > gapBottom) {
+            // Check if bird circle overlaps with pipes
+            // Find closest point on pipe rectangles to bird center
+
+            // Top pipe collision
+            if (birdCenterX + birdRadius > pipeLeft && birdCenterX - birdRadius < pipeRight) {
+                if (birdCenterY - birdRadius < gapTop) {
+                    this.gameOver();
+                    return;
+                }
+                if (birdCenterY + birdRadius > gapBottom) {
                     this.gameOver();
                     return;
                 }
@@ -206,14 +210,35 @@ const FlappyGame = {
 
         ctx.shadowBlur = 0;
 
-        // Draw bird
+        // Draw bird as circle
         if (this.birdImageLoaded) {
             ctx.save();
             ctx.translate(this.bird.x + this.bird.width / 2, this.bird.y + this.bird.height / 2);
             // Rotate based on velocity
             const rotation = Math.min(Math.max(this.bird.velocity / 500, -0.5), 0.5);
             ctx.rotate(rotation);
+
+            // Clip to circle
+            ctx.beginPath();
+            ctx.arc(0, 0, this.bird.width / 2, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+
+            // Draw image
             ctx.drawImage(this.birdImage, -this.bird.width / 2, -this.bird.height / 2, this.bird.width, this.bird.height);
+            ctx.restore();
+
+            // Optional: Draw border around circle
+            ctx.save();
+            ctx.translate(this.bird.x + this.bird.width / 2, this.bird.y + this.bird.height / 2);
+            ctx.rotate(rotation);
+            ctx.beginPath();
+            ctx.arc(0, 0, this.bird.width / 2, 0, Math.PI * 2);
+            ctx.strokeStyle = '#00f3ff';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = '#00f3ff';
+            ctx.stroke();
             ctx.restore();
         } else {
             // Fallback emoji
