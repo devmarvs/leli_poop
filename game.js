@@ -199,8 +199,54 @@ spawner = new Spawner();
 projectiles = [];
 let particles = [];
 
+// Sound Manager using Web Audio API
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+const SoundManager = {
+    playPoop: function () {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        osc.frequency.value = 300;
+        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+        osc.type = 'sawtooth';
+
+        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    },
+
+    playSplat: function () {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        // Squishy sound: rapid frequency modulation
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+        osc.type = 'triangle';
+
+        gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    }
+};
+
 function spawnProjectile(x, y) {
     projectiles.push(new Projectile(x, y));
+    SoundManager.playPoop(); // Play sound on spawn
 }
 
 function spawnParticles(x, y, color, count = 10) {
@@ -220,6 +266,7 @@ function checkCollisions() {
             p.markedForDeletion = true;
             score++;
             spawnParticles(p.x, p.y, '#00ff00', 15);
+            SoundManager.playSplat(); // Play sound on catch
             updateUI();
         }
     });
