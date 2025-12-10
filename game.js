@@ -201,22 +201,47 @@ let particles = [];
 
 // Sound Manager using Web Audio API
 const AudioContext = window.AudioContext || window.webkitAudioContext;
-let audioCtx;
+let audioCtx = null;
+let audioUnlocked = false;
 
-function initAudio() {
-    if (!audioCtx) {
-        audioCtx = new AudioContext();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    // Play silent buffer to unlock iOS
-    const buffer = audioCtx.createBuffer(1, 1, 22050);
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
+// Create AudioContext immediately (will be suspended on mobile until user interaction)
+try {
+    audioCtx = new AudioContext();
+} catch (e) {
+    console.warn('AudioContext not available:', e);
 }
+
+// Unlock audio on user interaction (critical for iOS)
+function unlockAudio() {
+    if (audioUnlocked || !audioCtx) return;
+
+    // Resume if suspended (this is what iOS needs)
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+            console.log('AudioContext resumed');
+        }).catch(e => {
+            console.warn('AudioContext resume failed:', e);
+        });
+    }
+
+    // Play a silent buffer to fully unlock on iOS
+    try {
+        const buffer = audioCtx.createBuffer(1, 1, 22050);
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+    } catch (e) {
+        // Ignore
+    }
+
+    audioUnlocked = true;
+}
+
+// Add early unlock listeners
+['touchstart', 'touchend', 'mousedown', 'click', 'keydown'].forEach(event => {
+    document.addEventListener(event, unlockAudio, { once: true, passive: true });
+});
 
 const SoundManager = {
     playPoop: function () {
@@ -338,7 +363,7 @@ function triggerGameOver() {
 // Game Flow Control
 function startGame() {
     // Unlock AudioContext for Mobile (must be in user interaction)
-    initAudio();
+    unlockAudio();
 
     isGameStarted = true;
     document.getElementById('welcome-screen').classList.add('hidden');
@@ -362,6 +387,7 @@ function startGame() {
 }
 
 function resetGame() {
+    unlockAudio(); // Ensure audio stays unlocked on restart
     isGameOver = false;
     score = 0;
     updateUI();
