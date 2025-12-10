@@ -202,6 +202,7 @@ let particles = [];
 // Sound Manager using Web Audio API
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
+let audioUnlocked = false;
 
 // Check if we're on iOS
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -214,6 +215,7 @@ function initAudioContext() {
     try {
         audioCtx = new AudioContext();
         console.log('AudioContext created, state:', audioCtx.state);
+        audioUnlocked = audioCtx.state === 'running';
     } catch (e) {
         console.warn('AudioContext not available:', e);
     }
@@ -226,49 +228,65 @@ if (!isIOS) {
 }
 
 // Unlock/resume audio - call this on user interaction
-async function unlockAudio() {
-    // Create context if needed (for iOS, this must happen in user gesture)
+function unlockAudio() {
+    if (audioUnlocked && audioCtx && audioCtx.state === 'running') return;
+
     if (!audioCtx) {
         initAudioContext();
     }
 
     if (!audioCtx) return;
 
-    // Resume if suspended
-    if (audioCtx.state === 'suspended') {
-        try {
-            await audioCtx.resume();
-            console.log('AudioContext resumed, state:', audioCtx.state);
-        } catch (e) {
-            console.warn('Resume failed:', e);
-        }
+    try {
+        // A one-sample buffer is the most reliable way to unlock iOS audio.
+        const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.0001;
+        source.connect(gain);
+        gain.connect(audioCtx.destination);
+        source.start(0);
+        source.onended = () => {
+            if (audioCtx.state === 'running') {
+                audioUnlocked = true;
+            }
+        };
+    } catch (e) {
+        console.warn('Silent unlock failed:', e);
     }
 
-    // Play silent sound to fully unlock iOS
-    if (audioCtx.state === 'running') {
-        try {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0.001; // Nearly silent
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(0);
-            osc.stop(audioCtx.currentTime + 0.01);
-        } catch (e) {
-            // Ignore
-        }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+            if (audioCtx.state === 'running') {
+                audioUnlocked = true;
+                console.log('AudioContext resumed after unlock.');
+            }
+        }).catch((e) => console.warn('Resume failed:', e));
+    } else if (audioCtx.state === 'running') {
+        audioUnlocked = true;
     }
 }
 
 // Add unlock listeners for various user interactions
-['touchstart', 'touchend', 'mousedown', 'click', 'keydown'].forEach(event => {
+['pointerdown', 'touchstart', 'touchend', 'mousedown', 'click', 'keydown'].forEach(event => {
     document.addEventListener(event, unlockAudio, { passive: true });
 });
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        unlockAudio();
+    }
+});
+
+function ensureAudioReady() {
+    unlockAudio();
+    return audioCtx && audioCtx.state === 'running';
+}
 
 const SoundManager = {
-    // Helper to check if audio is ready
+    // Helper to check if audio is ready; attempts to unlock if suspended
     isReady: function () {
-        return audioCtx && audioCtx.state === 'running';
+        return ensureAudioReady();
     },
 
     playPoop: function () {
