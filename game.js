@@ -322,8 +322,30 @@ function triggerGameOver() {
 
 // Game Flow Control
 function startGame() {
+    // Unlock AudioContext for Mobile (must be in user interaction)
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+            console.log('AudioContext resumed successfully');
+        });
+    }
+
     isGameStarted = true;
     document.getElementById('welcome-screen').classList.add('hidden');
+
+    // Request Device Orientation Permission (iOS 13+)
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // This is where the actual permission request logic would go.
+        // For example:
+        // DeviceOrientationEvent.requestPermission()
+        //   .then(response => {
+        //     if (response === 'granted') {
+        //       window.addEventListener('deviceorientation', handleTilt);
+        //     } else {
+        //       console.log('Device orientation permission not granted');
+        //     }
+        //   })
+        //   .catch(console.error);
+    }
     lastTime = performance.now();
     requestAnimationFrame(gameLoop);
 }
