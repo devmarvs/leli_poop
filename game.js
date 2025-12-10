@@ -233,8 +233,41 @@ if (!isIOS) {
     initAudioContext();
 }
 
+// Synchronous prime to keep within the user gesture
+function forceUnlockAudio() {
+    if (!audioCtx) {
+        initAudioContext();
+    }
+    if (!audioCtx) return;
+
+    try {
+        const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.0001;
+        source.connect(gain);
+        gain.connect(audioCtx.destination);
+        source.start(0);
+        source.stop(audioCtx.currentTime + 0.01);
+    } catch (e) {
+        console.warn('forceUnlockAudio failed:', e);
+    }
+
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+            if (audioCtx.state === 'running') {
+                audioUnlocked = true;
+            }
+        }).catch((e) => console.warn('Resume failed:', e));
+    } else if (audioCtx.state === 'running') {
+        audioUnlocked = true;
+    }
+}
+
 // Unlock/resume audio - call this on user interaction
 function unlockAudio() {
+    forceUnlockAudio();
     ensureAudioReady();
 }
 
@@ -249,15 +282,13 @@ document.addEventListener('visibilitychange', () => {
 });
 
 async function ensureAudioReady() {
+    forceUnlockAudio();
     if (audioUnlocked && audioCtx && audioCtx.state === 'running') return true;
 
     if (audioReadyPromise) return audioReadyPromise;
 
     audioReadyPromise = (async () => {
-        if (!audioCtx) {
-            initAudioContext();
-        }
-
+        if (!audioCtx) initAudioContext();
         if (!audioCtx) return false;
 
         if (audioCtx.state === 'suspended') {
