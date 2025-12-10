@@ -2,6 +2,7 @@
     --neon-blue: #00f3ff;
     --neon-pink: #ff00ff;
     --neon-green: #00ff00;
+    --neon-yellow: #ffff00;
     --bg-color: #050510;
 }
 
@@ -35,6 +36,7 @@ canvas {
     left: 0;
     width: 100%;
     height: 100%;
+    ;
     pointer-events: none;
     display: flex;
     flex-direction: column;
@@ -50,20 +52,79 @@ canvas {
     text-align: left;
 }
 
+/* Modal screens - shared styling */
+#main-menu,
+#welcome-screen,
+#flappy-welcome,
 #game-over,
-#welcome-screen {
+#flappy-game-over {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.9);
     padding: 30px;
-    border: 2px solid var(--neon-pink);
-    border-radius: 10px;
-    box-shadow: 0 0 30px var(--neon-pink);
+    border-radius: 15px;
     pointer-events: auto;
     max-width: 90%;
+}
+
+#main-menu {
+    border: 3px solid var(--neon-yellow);
+    box-shadow: 0 0 40px var(--neon-yellow);
+}
+
+#main-menu h1 {
+    color: var(--neon-yellow);
+    text-shadow: 0 0 15px var(--neon-yellow);
+    font-size: 42px;
+}
+
+#welcome-screen,
+#game-over {
+    border: 2px solid var(--neon-pink);
+    box-shadow: 0 0 30px var(--neon-pink);
+}
+
+#flappy-welcome,
+#flappy-game-over {
+    border: 2px solid var(--neon-blue);
+    box-shadow: 0 0 30px var(--neon-blue);
+}
+
+#flappy-welcome h1,
+#flappy-game-over h1 {
+    color: var(--neon-blue);
+    text-shadow: 0 0 10px var(--neon-blue);
+}
+
+/* Menu buttons */
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.menu-btn {
+    font-size: 22px;
+    padding: 20px 40px;
+}
+
+.back-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.6);
+    padding: 10px 20px;
+    font-size: 14px;
+    margin-top: 15px;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    box-shadow: none;
 }
 
 .welcome-content {
@@ -78,48 +139,35 @@ canvas {
 }
 
 .welcome-image {
-    width: 150px;
-    height: auto;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     border: 2px solid var(--neon-blue);
     box-shadow: 0 0 15px var(--neon-blue);
-    /* Basic fit if background removal fails */
     object-fit: cover;
 }
 
-/* Mobile responsive for modal */
-@media (max-width: 600px) {
-    .welcome-content {
-        flex-direction: column-reverse;
-        text-align: center;
-    }
-
-    .welcome-image {
-        width: 100px;
-        margin-bottom: 10px;
-    }
-}
-
 .gameover-image {
-    width: 120px;
-    height: auto;
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
     border: 2px solid var(--neon-pink);
     box-shadow: 0 0 15px var(--neon-pink);
     margin: 15px auto;
     display: block;
+    object-fit: cover;
 }
 
-#game-over.hidden,
-#welcome-screen.hidden {
-    display: none;
+/* Hidden class */
+.hidden {
+    display: none !important;
 }
 
 h1 {
     color: var(--neon-pink);
     text-shadow: 0 0 10px var(--neon-pink);
-    font-size: 48px;
-    margin: 0 0 20px 0;
+    font-size: 36px;
+    margin: 0 0 15px 0;
 }
 
 button {
@@ -127,15 +175,43 @@ button {
     border: 2px solid var(--neon-blue);
     color: var(--neon-blue);
     padding: 15px 30px;
-    font-size: 20px;
+    font-size: 18px;
     cursor: pointer;
     text-transform: uppercase;
     transition: all 0.3s ease;
     box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+    border-radius: 5px;
 }
 
 button:hover {
     background: var(--neon-blue);
     color: black;
     box-shadow: 0 0 30px var(--neon-blue);
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+    .welcome-content {
+        flex-direction: column-reverse;
+        text-align: center;
+    }
+
+    .welcome-image {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 10px;
+    }
+
+    h1 {
+        font-size: 28px;
+    }
+
+    #main-menu h1 {
+        font-size: 32px;
+    }
+
+    .menu-btn {
+        font-size: 18px;
+        padding: 15px 30px;
+    }
 }

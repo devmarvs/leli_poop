@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leli Poop - Galactic Catch</title>
+    <title>Chesa Chronicles</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
@@ -12,8 +12,21 @@
 <body>
     <div id="game-container">
         <div id="ui-layer">
-            <div id="score-board">Score: <span id="score">0</span></div>
-            <div id="welcome-screen">
+            <!-- Main Menu -->
+            <div id="main-menu">
+                <h1>Chesa Chronicles</h1>
+                <p>Choose your adventure!</p>
+                <div class="menu-buttons">
+                    <button id="play-leli-btn" class="menu-btn">🚽 Play Leli Poop</button>
+                    <button id="play-flappy-btn" class="menu-btn">🐦 Play Kuh Kayi Flap</button>
+                </div>
+            </div>
+
+            <!-- Score Board (shared) -->
+            <div id="score-board" class="hidden">Score: <span id="score">0</span></div>
+
+            <!-- Leli Poop Welcome -->
+            <div id="welcome-screen" class="hidden">
                 <h1>Leli Poop</h1>
                 <div class="welcome-content">
                     <div class="welcome-text">
@@ -23,20 +36,51 @@
                             <p><strong>Mobile:</strong> Tap screen 📱</p>
                         </div>
                         <button id="start-btn">Start Game</button>
+                        <button id="back-to-menu-leli" class="back-btn">← Back to Menu</button>
                     </div>
                     <img src="assets/leli.png" alt="Leli" class="welcome-image">
                 </div>
             </div>
+
+            <!-- Leli Poop Game Over -->
             <div id="game-over" class="hidden">
                 <h1>GAME OVER</h1>
                 <img src="assets/leli-sad.jpg" alt="Leli sad" class="gameover-image">
                 <p>Final Score: <span id="final-score">0</span></p>
                 <button id="restart-btn">Try Again</button>
+                <button id="menu-from-leli" class="back-btn">← Back to Menu</button>
+            </div>
+
+            <!-- Kuh Kayi Flap Welcome -->
+            <div id="flappy-welcome" class="hidden">
+                <h1>Kuh Kayi Flap</h1>
+                <div class="welcome-content">
+                    <div class="welcome-text">
+                        <p>Help Kuh Kayi fly through the pipes!</p>
+                        <div class="instructions">
+                            <p><strong>Desktop:</strong> Press Space or Click to Flap</p>
+                            <p><strong>Mobile:</strong> Tap screen to Flap 📱</p>
+                        </div>
+                        <button id="start-flappy-btn">Start Game</button>
+                        <button id="back-to-menu-flappy" class="back-btn">← Back to Menu</button>
+                    </div>
+                    <img src="assets/kuhkayi.png" alt="Kuh Kayi" class="welcome-image">
+                </div>
+            </div>
+
+            <!-- Kuh Kayi Flap Game Over -->
+            <div id="flappy-game-over" class="hidden">
+                <h1>GAME OVER</h1>
+                <img src="assets/kuhkayi-sad.png" alt="Kuh Kayi sad" class="gameover-image">
+                <p>Final Score: <span id="flappy-final-score">0</span></p>
+                <button id="restart-flappy-btn">Try Again</button>
+                <button id="menu-from-flappy" class="back-btn">← Back to Menu</button>
             </div>
         </div>
         <canvas id="gameCanvas"></canvas>
     </div>
     <script src="game.js"></script>
+    <script src="flappy.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')

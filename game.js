@@ -390,6 +390,27 @@ const SoundManager = {
         });
     },
 
+    playFlap: function () {
+        withAudioReady(() => {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            // Quick rising chirp for flap
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.08);
+            osc.type = 'sine';
+
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        });
+    },
+
     playGameOver: function () {
         withAudioReady(() => {
             const now = audioCtx.currentTime;
@@ -520,6 +541,127 @@ function handleTilt(e) {
 
 document.getElementById('start-btn').addEventListener('click', startGame);
 document.getElementById('restart-btn').addEventListener('click', resetGame);
+
+// =====================================
+// MENU NAVIGATION
+// =====================================
+
+let currentGame = null; // 'leli' or 'flappy'
+
+// Background Music
+let bgMusic = null;
+
+function initBackgroundMusic() {
+    if (!bgMusic) {
+        bgMusic = new Audio('assets/flintastek.mp3');
+        bgMusic.loop = true;
+        bgMusic.volume = 0.5;
+    }
+}
+
+function playBackgroundMusic() {
+    initBackgroundMusic();
+    if (bgMusic.paused) {
+        bgMusic.play().catch(e => {
+            console.log('Background music autoplay blocked, will try on interaction');
+        });
+    }
+}
+
+function stopBackgroundMusic() {
+    if (bgMusic && !bgMusic.paused) {
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+    }
+}
+
+// Try to play music on first interaction (for mobile)
+function tryPlayMusicOnInteraction() {
+    playBackgroundMusic();
+}
+['click', 'touchstart', 'keydown'].forEach(event => {
+    document.addEventListener(event, function musicStarter() {
+        // Only play if on main menu
+        if (currentGame === null && !document.getElementById('main-menu').classList.contains('hidden')) {
+            playBackgroundMusic();
+        }
+        document.removeEventListener(event, musicStarter);
+    }, { once: true });
+});
+
+function showMainMenu() {
+    // Stop any running game
+    isGameStarted = false;
+    isGameOver = false;
+    if (typeof FlappyGame !== 'undefined') {
+        FlappyGame.stop();
+    }
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Hide all screens
+    document.getElementById('main-menu').classList.remove('hidden');
+    document.getElementById('welcome-screen').classList.add('hidden');
+    document.getElementById('game-over').classList.add('hidden');
+    document.getElementById('flappy-welcome').classList.add('hidden');
+    document.getElementById('flappy-game-over').classList.add('hidden');
+    document.getElementById('score-board').classList.add('hidden');
+
+    currentGame = null;
+
+    // Play background music on main menu
+    playBackgroundMusic();
+}
+
+function showLeliWelcome() {
+    stopBackgroundMusic();
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('welcome-screen').classList.remove('hidden');
+    currentGame = 'leli';
+}
+
+function showFlappyWelcome() {
+    stopBackgroundMusic();
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('flappy-welcome').classList.remove('hidden');
+    currentGame = 'flappy';
+}
+
+function startFlappyGame() {
+    document.getElementById('flappy-welcome').classList.add('hidden');
+    document.getElementById('score-board').classList.remove('hidden');
+
+    // Unlock audio
+    unlockAudio();
+
+    // Start the flappy game
+    if (typeof FlappyGame !== 'undefined') {
+        FlappyGame.start();
+    }
+}
+
+function resetFlappyGame() {
+    document.getElementById('flappy-game-over').classList.add('hidden');
+
+    if (typeof FlappyGame !== 'undefined') {
+        FlappyGame.start();
+    }
+}
+
+// Menu button handlers
+document.getElementById('play-leli-btn').addEventListener('click', showLeliWelcome);
+document.getElementById('play-flappy-btn').addEventListener('click', showFlappyWelcome);
+
+// Back to menu buttons
+document.getElementById('back-to-menu-leli').addEventListener('click', showMainMenu);
+document.getElementById('back-to-menu-flappy').addEventListener('click', showMainMenu);
+document.getElementById('menu-from-leli').addEventListener('click', showMainMenu);
+document.getElementById('menu-from-flappy').addEventListener('click', showMainMenu);
+
+// Flappy game buttons
+document.getElementById('start-flappy-btn').addEventListener('click', startFlappyGame);
+document.getElementById('restart-flappy-btn').addEventListener('click', resetFlappyGame);
 
 // Main Loop
 function gameLoop(timestamp) {

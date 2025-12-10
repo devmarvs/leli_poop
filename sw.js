@@ -1,11 +1,15 @@
-const CACHE_NAME = 'leli-poop-v2';
+const CACHE_NAME = 'leli-poop-v3';
 const ASSETS = [
     './',
     './index.html',
     './style.css',
     './game.js',
+    './flappy.js',
     './assets/leli.png',
-    './assets/leli-sad.jpg'
+    './assets/leli-sad.jpg',
+    './assets/kuhkayi.png',
+    './assets/kuhkayi-sad.png',
+    './assets/flintastek.mp3'
 ];
 
 self.addEventListener('install', (e) => {
