@@ -241,6 +241,43 @@ const SoundManager = {
 
         osc.start();
         osc.stop(audioCtx.currentTime + 0.2);
+    },
+
+    playGameOver: function () {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+
+        // Simple retro "Death" melody (approximate Mario-ish vibe)
+        // Notes: C5 -> G4 -> E4 -> A3 -> B3 -> A3 -> G3# -> A3# -> G3# -> G3 (Just a descending crash)
+        // Let's do a quick descending arpeggio
+
+        [
+            { freq: 523.25, time: 0.0, dur: 0.1 }, // C5
+            { freq: 392.00, time: 0.1, dur: 0.1 }, // G4
+            { freq: 329.63, time: 0.2, dur: 0.1 }, // E4
+
+            { freq: 220.00, time: 0.35, dur: 0.15 }, // A3
+            { freq: 246.94, time: 0.5, dur: 0.15 }, // B3
+            { freq: 220.00, time: 0.65, dur: 0.15 }, // A3
+            { freq: 207.65, time: 0.8, dur: 0.15 }, // Ab3
+            { freq: 196.00, time: 0.95, dur: 0.4 }, // G3
+        ].forEach(note => {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.type = 'square'; // retro 8-bit sound
+            osc.frequency.value = note.freq;
+
+            gainNode.gain.setValueAtTime(0.3, now + note.time);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + note.time + note.dur);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start(now + note.time);
+            osc.stop(now + note.time + note.dur);
+        });
     }
 };
 
@@ -278,6 +315,7 @@ function updateUI() {
 
 function triggerGameOver() {
     isGameOver = true;
+    SoundManager.playGameOver(); // Play retro game over tune
     document.getElementById('final-score').innerText = score;
     document.getElementById('game-over').classList.remove('hidden');
 }
