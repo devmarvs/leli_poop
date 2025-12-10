@@ -240,7 +240,7 @@ function unlockAudio() {
 
 // Add unlock listeners for various user interactions
 ['pointerdown', 'touchstart', 'touchend', 'mousedown', 'click', 'keydown'].forEach(event => {
-    document.addEventListener(event, unlockAudio, { passive: true });
+    document.addEventListener(event, unlockAudio, { passive: false });
 });
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
@@ -432,9 +432,9 @@ function triggerGameOver() {
 }
 
 // Game Flow Control
-function startGame() {
+async function startGame() {
     // Unlock AudioContext for Mobile (must be in user interaction)
-    unlockAudio();
+    await ensureAudioReady();
 
     isGameStarted = true;
     document.getElementById('welcome-screen').classList.add('hidden');
@@ -457,8 +457,8 @@ function startGame() {
     requestAnimationFrame(gameLoop);
 }
 
-function resetGame() {
-    unlockAudio(); // Ensure audio stays unlocked on restart
+async function resetGame() {
+    await ensureAudioReady(); // Ensure audio stays unlocked on restart
     isGameOver = false;
     score = 0;
     updateUI();

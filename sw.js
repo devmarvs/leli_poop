@@ -1,4 +1,4 @@
-const CACHE_NAME = 'leli-poop-v1';
+const CACHE_NAME = 'leli-poop-v2';
 const ASSETS = [
     './',
     './index.html',
