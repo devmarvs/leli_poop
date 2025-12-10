@@ -58,11 +58,46 @@ canvas {
     transform: translate(-50%, -50%);
     text-align: center;
     background: rgba(0, 0, 0, 0.85);
-    padding: 40px;
+    padding: 30px;
     border: 2px solid var(--neon-pink);
     border-radius: 10px;
     box-shadow: 0 0 30px var(--neon-pink);
     pointer-events: auto;
+    max-width: 90%;
+}
+
+.welcome-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    text-align: left;
+}
+
+.welcome-text {
+    flex: 1;
+}
+
+.welcome-image {
+    width: 150px;
+    height: auto;
+    border-radius: 50%;
+    border: 2px solid var(--neon-blue);
+    box-shadow: 0 0 15px var(--neon-blue);
+    /* Basic fit if background removal fails */
+    object-fit: cover;
+}
+
+/* Mobile responsive for modal */
+@media (max-width: 600px) {
+    .welcome-content {
+        flex-direction: column-reverse;
+        text-align: center;
+    }
+
+    .welcome-image {
+        width: 100px;
+        margin-bottom: 10px;
+    }
 }
 
 #game-over.hidden,

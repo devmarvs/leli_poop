@@ -3,7 +3,8 @@ const ASSETS = [
     './',
     './index.html',
     './style.css',
-    './game.js'
+    './game.js',
+    './assets/leli.png'
 ];
 
 self.addEventListener('install', (e) => {
