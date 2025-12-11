@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Angry Leli Graphics Test</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .test-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .test-item {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .test-item h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-item img {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #eee;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Angry Leli Graphics Test</h1>
+    <p>This page tests if all the new graphic assets are loading correctly.</p>
+
+    <div class="test-container" id="testContainer">
+        <!-- Test results will be displayed here -->
+    </div>
+
+    <div id="status"></div>
+
+    <script>
+        // Test all the new graphic assets
+        const assetsToTest = [
+            { name: 'Angry Bird Sprite', path: 'assets/angry-bird-sprite.svg' },
+            { name: 'Pig Target Sprite', path: 'assets/pig-target-sprite.svg' },
+            { name: 'Slingshot Sprite', path: 'assets/slingshot-sprite.svg' },
+            { name: 'Background', path: 'assets/angry-leli-background.svg' },
+            { name: 'Explosion Particle', path: 'assets/explosion-particle.svg' },
+            { name: 'Wood Platform', path: 'assets/wood-platform.svg' }
+        ];
+
+        let loadedCount = 0;
+        const testContainer = document.getElementById('testContainer');
+        const statusDiv = document.getElementById('status');
+
+        assetsToTest.forEach(asset => {
+            const testItem = document.createElement('div');
+            testItem.className = 'test-item';
+
+            const title = document.createElement('h3');
+            title.textContent = asset.name;
+            testItem.appendChild(title);
+
+            const img = document.createElement('img');
+            img.src = asset.path;
+            img.alt = asset.name;
+
+            const result = document.createElement('p');
+            result.id = `result-${asset.name.replace(/\s+/g, '-')}`;
+
+            img.onload = function() {
+                result.textContent = '✅ Loaded successfully';
+                result.className = 'success';
+                loadedCount++;
+                updateOverallStatus();
+            };
+
+            img.onerror = function() {
+                result.textContent = '❌ Failed to load';
+                result.className = 'error';
+                loadedCount++;
+                updateOverallStatus();
+            };
+
+            testItem.appendChild(img);
+            testItem.appendChild(result);
+            testContainer.appendChild(testItem);
+        });
+
+        function updateOverallStatus() {
+            if (loadedCount === assetsToTest.length) {
+                const allSuccessful = Array.from(document.querySelectorAll('.result'))
+                    .every(el => el.className === 'success');
+
+                if (allSuccessful) {
+                    statusDiv.innerHTML = '<p class="success">🎉 All graphics loaded successfully! The Angry Leli game should now have improved graphics.</p>';
+                } else {
+                    statusDiv.innerHTML = '<p class="error">⚠️ Some graphics failed to load. Check the console for errors.</p>';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

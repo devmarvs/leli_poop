@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <!-- Angry Leli Background -->
+  <defs>
+    <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a15;stop-opacity:1" />
+    </linearGradient>
+
+    <linearGradient id="groundGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#3a3a55;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2a2a3e;stop-opacity:1" />
+    </linearGradient>
+
+    <pattern id="grassPattern" patternUnits="userSpaceOnUse" width="40" height="40">
+      <rect width="40" height="40" fill="#32CD32"/>
+      <path d="M0,20 Q10,15 20,20 T40,20" fill="#228B22" stroke="#228B22" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Sky -->
+  <rect x="0" y="0" width="800" height="500" fill="url(#skyGradient)"/>
+
+  <!-- Ground -->
+  <rect x="0" y="500" width="800" height="100" fill="url(#groundGradient)"/>
+
+  <!-- Grass overlay -->
+  <rect x="0" y="480" width="800" height="20" fill="url(#grassPattern)"/>
+
+  <!-- Hills -->
+  <path d="M0,500 Q200,450 400,500 T800,500 L800,600 L0,600 Z" fill="#228B22" opacity="0.6"/>
+  <path d="M0,520 Q150,480 300,520 T600,520 L600,600 L0,600 Z" fill="#32CD32" opacity="0.4"/>
+
+  <!-- Trees -->
+  <g transform="translate(50, 450)">
+    <rect x="-5" y="0" width="10" height="50" fill="#8B4513"/>
+    <circle cx="0" cy="-20" r="25" fill="#228B22"/>
+    <circle cx="0" cy="-40" r="20" fill="#228B22"/>
+  </g>
+
+  <g transform="translate(200, 430)">
+    <rect x="-5" y="0" width="10" height="70" fill="#8B4513"/>
+    <circle cx="0" cy="-25" r="30" fill="#228B22"/>
+    <circle cx="0" cy="-50" r="25" fill="#228B22"/>
+  </g>
+
+  <g transform="translate(600, 440)">
+    <rect x="-5" y="0" width="10" height="60" fill="#8B4513"/>
+    <circle cx="0" cy="-20" r="28" fill="#228B22"/>
+    <circle cx="0" cy="-45" r="22" fill="#228B22"/>
+  </g>
+
+  <!-- Bushes -->
+  <g transform="translate(150, 480)">
+    <ellipse cx="0" cy="0" rx="20" ry="15" fill="#228B22"/>
+    <ellipse cx="15" cy="-5" rx="18" ry="12" fill="#228B22"/>
+    <ellipse cx="-15" cy="-5" rx="18" ry="12" fill="#228B22"/>
+  </g>
+
+  <g transform="translate(400, 470)">
+    <ellipse cx="0" cy="0" rx="25" ry="18" fill="#228B22"/>
+    <ellipse cx="20" cy="-8" rx="22" ry="15" fill="#228B22"/>
+    <ellipse cx="-20" cy="-8" rx="22" ry="15" fill="#228B22"/>
+  </g>
+
+  <g transform="translate(700, 460)">
+    <ellipse cx="0" cy="0" rx="18" ry="12" fill="#228B22"/>
+    <ellipse cx="12" cy="-4" rx="16" ry="10" fill="#228B22"/>
+    <ellipse cx="-12" cy="-4" rx="16" ry="10" fill="#228B22"/>
+  </g>
+
+  <!-- Clouds -->
+  <g transform="translate(100, 100)">
+    <ellipse cx="0" cy="0" rx="30" ry="20" fill="#FFFFFF" opacity="0.8"/>
+    <ellipse cx="25" cy="-10" rx="25" ry="18" fill="#FFFFFF" opacity="0.8"/>
+    <ellipse cx="-25" cy="-10" rx="25" ry="18" fill="#FFFFFF" opacity="0.8"/>
+  </g>
+
+  <g transform="translate(500, 80)">
+    <ellipse cx="0" cy="0" rx="25" ry="15" fill="#FFFFFF" opacity="0.8"/>
+    <ellipse cx="20" cy="-8" rx="20" ry="13" fill="#FFFFFF" opacity="0.8"/>
+    <ellipse cx="-20" cy="-8" rx="20" ry="13" fill="#FFFFFF" opacity="0.8"/>
+  </g>
+
+  <g transform="translate(700, 120)">
+    <ellipse cx="0" cy="0" rx="22" ry="14" fill="#FFFFFF" opacity="0.8"/>
+    <ellipse cx="18" cy="-7" rx="18" ry="12" fill="#FFFFFF" opacity="0.8"/>
+    <ellipse cx="-18" cy="-7" rx="18" ry="12" fill="#FFFFFF" opacity="0.8"/>
+  </g>
+</svg>

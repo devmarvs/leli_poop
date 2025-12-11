@@ -9,6 +9,7 @@ let isGameStarted = false;
 let player, spawner, projectiles;
 let stars = [];
 let starTick = 0;
+let AngryLeliGame; // Assigned later so resize can safely reference it
 
 // Configuration
 const GRAVITY = 200; // pixels per second squared
@@ -21,6 +22,9 @@ function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     generateStars();
+    if (AngryLeliGame && AngryLeliGame.onResize) {
+        AngryLeliGame.onResize();
+    }
     // Reposition player if they are off screen
     if (player) {
         player.y = canvas.height - player.height - 10;
@@ -628,7 +632,7 @@ document.getElementById('restart-btn').addEventListener('click', resetGame);
 // MENU NAVIGATION
 // =====================================
 
-let currentGame = null; // 'leli' or 'flappy'
+let currentGame = null; // 'leli', 'flappy', or 'angry'
 
 // Background Music
 let bgMusic = null;
@@ -678,6 +682,9 @@ function showMainMenu() {
     if (typeof FlappyGame !== 'undefined') {
         FlappyGame.stop();
     }
+    if (AngryLeliGame && AngryLeliGame.stop) {
+        AngryLeliGame.stop();
+    }
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -688,6 +695,8 @@ function showMainMenu() {
     document.getElementById('game-over').classList.add('hidden');
     document.getElementById('flappy-welcome').classList.add('hidden');
     document.getElementById('flappy-game-over').classList.add('hidden');
+    document.getElementById('angry-welcome').classList.add('hidden');
+    document.getElementById('angry-game-over').classList.add('hidden');
     document.getElementById('score-board').classList.add('hidden');
 
     currentGame = null;
@@ -708,6 +717,13 @@ function showFlappyWelcome() {
     document.getElementById('main-menu').classList.add('hidden');
     document.getElementById('flappy-welcome').classList.remove('hidden');
     currentGame = 'flappy';
+}
+
+function showAngryWelcome() {
+    stopBackgroundMusic();
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('angry-welcome').classList.remove('hidden');
+    currentGame = 'angry';
 }
 
 function startFlappyGame() {
@@ -731,19 +747,705 @@ function resetFlappyGame() {
     }
 }
 
+function startAngryGame() {
+    document.getElementById('angry-welcome').classList.add('hidden');
+    document.getElementById('angry-game-over').classList.add('hidden');
+    document.getElementById('score-board').classList.remove('hidden');
+    stopBackgroundMusic();
+    currentGame = 'angry';
+    unlockAudio();
+
+    if (AngryLeliGame) {
+        AngryLeliGame.start();
+    }
+}
+
+function resetAngryGame() {
+    document.getElementById('angry-game-over').classList.add('hidden');
+    document.getElementById('score-board').classList.remove('hidden');
+    currentGame = 'angry';
+    stopBackgroundMusic();
+
+    if (AngryLeliGame) {
+        AngryLeliGame.start();
+    }
+}
+
 // Menu button handlers
 document.getElementById('play-leli-btn').addEventListener('click', showLeliWelcome);
 document.getElementById('play-flappy-btn').addEventListener('click', showFlappyWelcome);
+document.getElementById('play-angry-btn').addEventListener('click', showAngryWelcome);
 
 // Back to menu buttons
 document.getElementById('back-to-menu-leli').addEventListener('click', showMainMenu);
 document.getElementById('back-to-menu-flappy').addEventListener('click', showMainMenu);
+document.getElementById('back-to-menu-angry').addEventListener('click', showMainMenu);
 document.getElementById('menu-from-leli').addEventListener('click', showMainMenu);
 document.getElementById('menu-from-flappy').addEventListener('click', showMainMenu);
+document.getElementById('menu-from-angry').addEventListener('click', showMainMenu);
 
 // Flappy game buttons
 document.getElementById('start-flappy-btn').addEventListener('click', startFlappyGame);
 document.getElementById('restart-flappy-btn').addEventListener('click', resetFlappyGame);
+
+// Angry Leli buttons
+document.getElementById('start-angry-btn').addEventListener('click', startAngryGame);
+document.getElementById('restart-angry-btn').addEventListener('click', resetAngryGame);
+
+// =====================================
+// ANGRY LELI (Angry Birds-style mini-game)
+// =====================================
+AngryLeliGame = {
+    canvas,
+    ctx,
+    isRunning: false,
+    lastTime: 0,
+    score: 0,
+    birdsRemaining: 0,
+    maxBirds: 5,
+    birds: [],
+    pigs: [],
+    obstacles: [],
+    currentLevel: 0,
+    particles: [],
+    currentBird: null,
+    isDragging: false,
+    slingAnchor: { x: 150, y: 0 },
+    pull: { dist: 0, angle: -Math.PI / 4 },
+    maxPull: 250,
+    groundY: 0,
+    birdRadius: 18,
+    pigRadius: 16,
+    nextBirdTimer: 0,
+    images: {},
+    imagesLoaded: false,
+
+    init() {
+        this.loadImages();
+        this.onResize();
+        this.setupControls();
+    },
+
+    loadImages() {
+        const imagePaths = {
+            bird: 'assets/leli-angry.png',
+            pig: 'assets/pig-target-sprite.svg',
+            slingshot: 'assets/slingshot-sprite.svg',
+            background: 'assets/angry-leli-background.svg',
+            particle: 'assets/explosion-particle.svg',
+            platform: 'assets/wood-platform.svg'
+        };
+
+        let loadedCount = 0;
+        const totalImages = Object.keys(imagePaths).length;
+
+        Object.keys(imagePaths).forEach(key => {
+            const img = new Image();
+            img.src = imagePaths[key];
+            img.onload = () => {
+                this.images[key] = img;
+                loadedCount++;
+                if (loadedCount === totalImages) {
+                    this.imagesLoaded = true;
+                    console.log('All Angry Leli images loaded');
+                }
+            };
+            img.onerror = () => {
+                console.warn(`Failed to load image: ${imagePaths[key]}`);
+                loadedCount++;
+            };
+        });
+    },
+
+    onResize() {
+        this.groundY = canvas.height - 80;
+        const slingTargetX = canvas.width * 0.20; // Further right for even more pull space on the left
+        this.slingAnchor.x = Math.max(200, Math.min(380, slingTargetX));
+        this.slingAnchor.y = this.groundY - 60;
+
+        // Keep an unlaunched bird at the sling after resize
+        if (this.currentBird && !this.currentBird.launched) {
+            this.currentBird.x = this.slingAnchor.x;
+            this.currentBird.y = this.slingAnchor.y;
+        }
+    },
+
+    setupControls() {
+        const pointerDown = (e) => {
+            if (!this.isRunning || currentGame !== 'angry') return;
+            const pos = this.getPointer(e);
+            if (this.canGrab(pos.x, pos.y)) {
+                this.isDragging = true;
+                this.updateAim(pos.x, pos.y);
+                e.preventDefault();
+            }
+        };
+
+        const pointerMove = (e) => {
+            if (!this.isRunning || currentGame !== 'angry' || !this.isDragging) return;
+            const pos = this.getPointer(e);
+            this.updateAim(pos.x, pos.y);
+            e.preventDefault();
+        };
+
+        const pointerUp = (e) => {
+            if (!this.isRunning || currentGame !== 'angry' || !this.isDragging) return;
+            this.launchCurrentBird();
+            e.preventDefault();
+        };
+
+        canvas.addEventListener('pointerdown', pointerDown, { passive: false });
+        canvas.addEventListener('pointermove', pointerMove, { passive: false });
+        canvas.addEventListener('pointerup', pointerUp, { passive: false });
+        canvas.addEventListener('pointerleave', pointerUp, { passive: false });
+    },
+
+    getPointer(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        return { x, y };
+    },
+
+    canGrab(x, y) {
+        if (!this.currentBird) return false;
+        const dx = x - this.currentBird.x;
+        const dy = y - this.currentBird.y;
+        return Math.hypot(dx, dy) <= this.currentBird.r * 2;
+    },
+
+    updateAim(x, y) {
+        if (!this.currentBird) return;
+        const dx = x - this.slingAnchor.x;
+        const dy = y - this.slingAnchor.y;
+        const dist = Math.min(this.maxPull, Math.hypot(dx, dy));
+        const angle = Math.atan2(dy, dx);
+        this.pull = { dist, angle };
+
+        this.currentBird.x = this.slingAnchor.x + Math.cos(angle) * dist;
+        this.currentBird.y = this.slingAnchor.y + Math.sin(angle) * dist;
+    },
+
+    launchCurrentBird() {
+        if (!this.currentBird) return;
+        const { dist, angle } = this.pull;
+        const minPull = 10;
+        if (dist < minPull) {
+            // Not enough pull, snap back
+            this.resetCurrentBirdPosition();
+            this.isDragging = false;
+            return;
+        }
+
+        const speedScale = 5.0;
+        // FIXED: Use the opposite angle to launch in the correct direction
+        // When you pull down, the bird should launch up (and vice versa)
+        this.currentBird.vx = -Math.cos(-angle) * dist * speedScale;
+        this.currentBird.vy = -Math.sin(-angle) * dist * speedScale;
+        this.currentBird.launched = true;
+        this.currentBird.active = true;
+        this.currentBird.restTime = 0;
+        this.birds.push(this.currentBird);
+        this.currentBird = null;
+        this.isDragging = false;
+        this.nextBirdTimer = 0.5;
+
+        if (SoundManager && SoundManager.playPoop) {
+            SoundManager.playPoop();
+        }
+    },
+
+    resetCurrentBirdPosition() {
+        if (!this.currentBird) return;
+        this.currentBird.x = this.slingAnchor.x;
+        this.currentBird.y = this.slingAnchor.y;
+        this.pull = { dist: 0, angle: -Math.PI / 4 };
+    },
+
+    prepareNextBird() {
+        if (this.birdsRemaining <= 0) return;
+        this.currentBird = {
+            x: this.slingAnchor.x,
+            y: this.slingAnchor.y,
+            vx: 0,
+            vy: 0,
+            r: this.birdRadius,
+            launched: false,
+            active: true,
+            restTime: 0
+        };
+        this.pull = { dist: 0, angle: -Math.PI / 4 };
+        this.birdsRemaining--;
+    },
+
+    buildLevel(levelIndex) {
+        const g = this.groundY;
+        const r = this.pigRadius;
+        // Push targets right, but not as extreme
+        const baseX = Math.max(200, Math.min(canvas.width - 200, Math.max(canvas.width * 0.60, this.slingAnchor.x + 340)));
+        const platformH = 18;
+        const tallH = 90;
+
+        const layouts = [
+            // Level 0: original simple cluster
+            () => ({
+                pigs: [
+                    { x: baseX, y: g - r, r },
+                    { x: baseX + 60, y: g - r, r },
+                    { x: baseX + 30, y: g - r * 3, r },
+                    { x: baseX + 100, y: g - r * 2, r }
+                ],
+                obstacles: []
+            }),
+            // Level 1: two pillars and a roof
+            () => ({
+                pigs: [
+                    { x: baseX - 10, y: g - r, r },
+                    { x: baseX + 70, y: g - r, r },
+                    { x: baseX + 150, y: g - r, r },
+                    { x: baseX + 40, y: g - tallH - r, r },
+                    { x: baseX + 120, y: g - tallH - platformH - r * 1.3, r }
+                ],
+                obstacles: [
+                    { x: baseX - 60, y: g - platformH, w: 220, h: platformH, health: 5 },
+                    { x: baseX - 60, y: g - platformH - tallH, w: 24, h: tallH, health: 4 },
+                    { x: baseX + 136, y: g - platformH - tallH, w: 24, h: tallH, health: 4 },
+                    { x: baseX - 40, y: g - platformH - tallH - platformH, w: 240, h: platformH, health: 5 }
+                ]
+            }),
+            // Level 2: stacked platforms with roof
+            () => ({
+                pigs: [
+                    { x: baseX + 10, y: g - r, r },
+                    { x: baseX + 80, y: g - r, r },
+                    { x: baseX + 150, y: g - r, r },
+                    { x: baseX + 70, y: g - 70 - r, r },
+                    { x: baseX + 120, y: g - 70 - platformH - r * 1.5, r }
+                ],
+                obstacles: [
+                    { x: baseX - 30, y: g - platformH, w: 240, h: platformH, health: 5 },
+                    { x: baseX, y: g - platformH - 70, w: 20, h: 70, health: 4 },
+                    { x: baseX + 190, y: g - platformH - 70, w: 20, h: 70, health: 4 },
+                    { x: baseX - 10, y: g - platformH - 70, w: 240, h: 16, health: 4 },
+                    { x: baseX + 60, y: g - platformH - 70 - 70, w: 120, h: 16, health: 3 }
+                ]
+            })
+        ];
+
+        const builder = layouts[levelIndex % layouts.length];
+        const { pigs, obstacles } = builder();
+
+        const normalizedPigs = pigs.map(p => ({ ...p, alive: true }));
+        const normalizedObstacles = obstacles.map(o => ({
+            ...o,
+            alive: true,
+            health: o.health || 3
+        }));
+
+        return { pigs: normalizedPigs, obstacles: normalizedObstacles };
+    },
+
+    loadLevel(levelIndex) {
+        const layout = this.buildLevel(levelIndex);
+        this.currentLevel = levelIndex;
+        this.pigs = layout.pigs;
+        this.obstacles = layout.obstacles;
+        this.particles = [];
+        this.birds = [];
+        this.currentBird = null;
+        this.isDragging = false;
+        this.nextBirdTimer = 0;
+        this.prepareNextBird();
+    },
+
+    advanceLevel() {
+        // Reward a couple birds for clearing a wave
+        this.birdsRemaining = Math.max(this.birdsRemaining + 2, 2);
+        this.loadLevel(this.currentLevel + 1);
+    },
+
+    start() {
+        this.reset();
+        this.isRunning = true;
+        this.lastTime = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
+    },
+
+    reset() {
+        this.score = 0;
+        this.birdsRemaining = this.maxBirds;
+        this.loadLevel(0);
+        document.getElementById('score').innerText = this.score;
+    },
+
+    stop() {
+        this.isRunning = false;
+    },
+
+    loop(timestamp) {
+        if (!this.isRunning || currentGame !== 'angry') return;
+        let dt = (timestamp - this.lastTime) / 1000;
+        this.lastTime = timestamp;
+        if (isNaN(dt) || dt > 0.05) dt = 0.016;
+
+        this.update(dt);
+        this.draw(dt);
+
+        requestAnimationFrame((t) => this.loop(t));
+    },
+
+    update(dt) {
+        this.updateBirds(dt);
+        this.updateParticles(dt);
+        this.cleanupObstacles();
+        this.checkHits();
+        this.handleNextBird(dt);
+        this.checkGameOver();
+    },
+
+    updateBirds(dt) {
+        for (const bird of this.birds) {
+            this.integrateBird(bird, dt);
+            this.handleObstacleCollisions(bird);
+        }
+        this.birds = this.birds.filter(b => b.active);
+    },
+
+    integrateBird(bird, dt) {
+        if (!bird.launched) return;
+
+        const gravity = 700;
+        bird.vy += gravity * dt;
+        bird.x += bird.vx * dt;
+        bird.y += bird.vy * dt;
+
+        // Wall bounce
+        if (bird.x - bird.r < 0) {
+            bird.x = bird.r;
+            bird.vx *= -0.4;
+        }
+        if (bird.x + bird.r > canvas.width) {
+            bird.x = canvas.width - bird.r;
+            bird.vx *= -0.4;
+        }
+
+        // Ground bounce
+        if (bird.y + bird.r > this.groundY) {
+            bird.y = this.groundY - bird.r;
+            if (Math.abs(bird.vy) > 40) {
+                bird.vy *= -0.35;
+            } else {
+                bird.vy = 0;
+            }
+            bird.vx *= 0.93;
+            if (Math.hypot(bird.vx, bird.vy) < 12) {
+                bird.restTime += dt;
+            } else {
+                bird.restTime = 0;
+            }
+        }
+
+        // Off-screen cleanup
+        if (bird.y - bird.r > canvas.height * 1.2 || bird.x + bird.r < -200 || bird.x - bird.r > canvas.width + 200) {
+            bird.active = false;
+            return;
+        }
+
+        // Fall asleep when fully stopped
+        if (Math.hypot(bird.vx, bird.vy) < 8 && bird.restTime > 0.8) {
+            bird.active = false;
+        }
+    },
+
+    handleObstacleCollisions(bird) {
+        if (!bird.launched) return;
+        for (const ob of this.obstacles) {
+            if (!ob.alive) continue;
+
+            const nearestX = Math.max(ob.x, Math.min(bird.x, ob.x + ob.w));
+            const nearestY = Math.max(ob.y, Math.min(bird.y, ob.y + ob.h));
+            const dx = bird.x - nearestX;
+            const dy = bird.y - nearestY;
+            const distSq = dx * dx + dy * dy;
+            const r = bird.r;
+
+            if (distSq < r * r) {
+                const dist = Math.sqrt(distSq) || 0.001;
+                const nx = dx / dist;
+                const ny = dy / dist;
+                const overlap = r - dist;
+
+                // Push bird out of the obstacle
+                bird.x += nx * overlap;
+                bird.y += ny * overlap;
+
+                // Reflect velocity with some dampening
+                const dot = bird.vx * nx + bird.vy * ny;
+                bird.vx = (bird.vx - 1.6 * dot * nx) * 0.82;
+                bird.vy = (bird.vy - 1.6 * dot * ny) * 0.82;
+
+                // Damage the obstacle based on impact
+                ob.health -= Math.max(1, Math.abs(dot) * 0.02);
+                if (ob.health <= 0) {
+                    ob.alive = false;
+                }
+
+                // Wake the bird to prevent sleeping mid-block
+                bird.active = true;
+                bird.restTime = 0;
+            }
+        }
+    },
+
+    updateParticles(dt) {
+        for (const p of this.particles) {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += 50 * dt;
+            p.life -= dt;
+        }
+        this.particles = this.particles.filter(p => p.life > 0);
+    },
+
+    cleanupObstacles() {
+        this.obstacles = this.obstacles.filter(o => o.alive && o.health > 0);
+    },
+
+    checkHits() {
+        for (const pig of this.pigs) {
+            if (!pig.alive) continue;
+            for (const bird of this.birds) {
+                if (!bird.launched) continue;
+                const dx = pig.x - bird.x;
+                const dy = pig.y - bird.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist < pig.r + bird.r) {
+                    pig.alive = false;
+                    this.score += 100;
+                    document.getElementById('score').innerText = this.score;
+                    this.spawnHitParticles(pig.x, pig.y);
+                    bird.vx *= 0.7;
+                    bird.vy *= 0.7;
+                    if (SoundManager && SoundManager.playSplat) {
+                        SoundManager.playSplat();
+                    }
+                    break;
+                }
+            }
+        }
+    },
+
+    handleNextBird(dt) {
+        if (this.currentBird || this.birdsRemaining <= 0) return;
+        this.nextBirdTimer -= dt;
+        if (this.nextBirdTimer <= 0) {
+            this.prepareNextBird();
+        }
+    },
+
+    checkGameOver() {
+        const pigsAlive = this.pigs.some(p => p.alive);
+        if (!pigsAlive) {
+            this.advanceLevel();
+            return;
+        }
+
+        const activeBirds = this.birds.some(b => b.active);
+        const hasAmmo = this.birdsRemaining > 0 || !!this.currentBird;
+        if (!activeBirds && !hasAmmo) {
+            this.gameOver(false);
+        }
+    },
+
+    gameOver(victory) {
+        this.isRunning = false;
+        const title = document.querySelector('#angry-game-over h1');
+        if (title) {
+            title.textContent = victory ? 'LEVEL CLEAR' : 'GAME OVER';
+        }
+        document.getElementById('angry-final-score').innerText = this.score;
+        document.getElementById('score-board').classList.add('hidden');
+        document.getElementById('angry-game-over').classList.remove('hidden');
+    },
+
+    spawnHitParticles(x, y) {
+        for (let i = 0; i < 18; i++) {
+            this.particles.push({
+                x,
+                y,
+                vx: (Math.random() * 2 - 1) * 180,
+                vy: (Math.random() * -1) * 120,
+                life: 0.8 + Math.random() * 0.4,
+                size: 2 + Math.random() * 3
+            });
+        }
+    },
+
+    draw(dt) {
+        const ctx = this.ctx;
+
+        // Draw new background using preloaded image
+        if (this.imagesLoaded) {
+            ctx.drawImage(this.images.background, 0, 0, canvas.width, canvas.height);
+        } else {
+            // Fallback if images not loaded yet
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawStars(ctx, dt);
+        }
+
+        // Draw ground overlay
+        drawTileFloor(ctx);
+
+        this.drawSlingshot(ctx);
+        this.drawObstacles(ctx);
+        this.drawTargets(ctx);
+        this.drawBirds(ctx);
+        this.drawParticles(ctx);
+        this.drawAmmo(ctx);
+    },
+
+    drawSlingshot(ctx) {
+        if (!this.imagesLoaded) return;
+
+        ctx.save();
+
+        // Draw slingshot base using preloaded image
+        ctx.drawImage(this.images.slingshot, this.slingAnchor.x - 100, this.groundY - 100, 200, 100);
+
+        // Draw rubber bands when dragging
+        if (this.isDragging && this.currentBird) {
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(this.slingAnchor.x - 10, this.slingAnchor.y);
+            ctx.lineTo(this.currentBird.x, this.currentBird.y);
+            ctx.lineTo(this.slingAnchor.x + 10, this.slingAnchor.y);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    },
+
+    drawObstacles(ctx) {
+        for (const ob of this.obstacles) {
+            if (!ob.alive) continue;
+
+            ctx.save();
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#d4b07a';
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 4;
+            if (this.images.platform && this.imagesLoaded) {
+                ctx.drawImage(this.images.platform, ob.x, ob.y, ob.w, ob.h);
+            } else {
+                ctx.fillStyle = '#8b6a3d';
+                ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+            }
+            ctx.restore();
+        }
+    },
+
+    drawTargets(ctx) {
+        if (!this.imagesLoaded) return;
+
+        for (const pig of this.pigs) {
+            if (!pig.alive) continue;
+
+            // Draw shadow first
+            ctx.save();
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#7CFC00';
+            ctx.shadowOffsetX = 5;
+            ctx.shadowOffsetY = 5;
+
+            // Draw pig sprite using preloaded image
+            ctx.drawImage(this.images.pig, pig.x - pig.r * 2, pig.y - pig.r * 2, pig.r * 4, pig.r * 4);
+
+            ctx.restore();
+        }
+    },
+
+    drawBirds(ctx) {
+        const drawOne = (bird, isGhost) => {
+            ctx.save();
+
+            // Apply ghost effect if needed
+            if (isGhost) {
+                ctx.globalAlpha = 0.5;
+            }
+
+            const radius = bird.r * 1.2;
+            const drawSize = radius * 2.4;
+
+            ctx.translate(bird.x, bird.y);
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff69b4';
+            ctx.shadowOffsetX = 5;
+            ctx.shadowOffsetY = 5;
+
+            // Clip to circle mask
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+
+            if (this.imagesLoaded && this.images.bird) {
+                ctx.drawImage(this.images.bird, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+            } else {
+                ctx.fillStyle = '#ffb6c1';
+                ctx.fillRect(-drawSize / 2, -drawSize / 2, drawSize, drawSize);
+            }
+
+            // Border ring
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ff69b4';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.restore();
+        };
+
+        this.birds.forEach(b => drawOne(b, false));
+
+        if (this.currentBird) {
+            drawOne(this.currentBird, !this.isDragging);
+        }
+    },
+
+    drawParticles(ctx) {
+        if (!this.imagesLoaded) return;
+
+        ctx.save();
+
+        for (const p of this.particles) {
+            ctx.globalAlpha = Math.max(0, p.life);
+
+            // Draw explosion particle using preloaded image
+            const size = p.size * 2;
+            ctx.drawImage(this.images.particle, p.x - size, p.y - size, size * 2, size * 2);
+        }
+
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    },
+
+    drawAmmo(ctx) {
+        ctx.save();
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'right';
+        const pad = 20;
+        const x = canvas.width - pad;
+        ctx.fillText(`Birds Left: ${this.birdsRemaining + (this.currentBird ? 1 : 0)}`, x, 30);
+        ctx.fillText(`Wave: ${this.currentLevel + 1}`, x, 50);
+        ctx.restore();
+    }
+};
+
+AngryLeliGame.init();
 
 // Background drawing for Leli Poop (bathroom tiles)
 function drawBathroomBackground(ctx) {

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+  <!-- Slingshot Sprite -->
+  <defs>
+    <linearGradient id="woodGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B4513;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A0522D;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Base -->
+  <rect x="50" y="80" width="100" height="15" rx="7" fill="url(#woodGradient)" stroke="#000" stroke-width="2"/>
+
+  <!-- Left Arm -->
+  <path d="M60,70 Q40,60 30,40 Q25,30 20,20" stroke="url(#woodGradient)" stroke-width="12" stroke-linecap="round" fill="none"/>
+
+  <!-- Right Arm -->
+  <path d="M140,70 Q160,60 170,40 Q175,30 180,20" stroke="url(#woodGradient)" stroke-width="12" stroke-linecap="round" fill="none"/>
+
+  <!-- Rubber Bands -->
+  <path d="M30,40 Q60,70 90,50" stroke="#FF0000" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M170,40 Q140,70 110,50" stroke="#FF0000" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+  <!-- Center Point -->
+  <circle cx="100" cy="50" r="8" fill="#8B4513" stroke="#000" stroke-width="2"/>
+
+  <!-- Details on base -->
+  <rect x="60" y="85" width="15" height="5" rx="2" fill="#000" stroke="#000" stroke-width="1"/>
+  <rect x="80" y="85" width="15" height="5" rx="2" fill="#000" stroke="#000" stroke-width="1"/>
+  <rect x="100" y="85" width="15" height="5" rx="2" fill="#000" stroke="#000" stroke-width="1"/>
+  <rect x="120" y="85" width="15" height="5" rx="2" fill="#000" stroke="#000" stroke-width="1"/>
+</svg>

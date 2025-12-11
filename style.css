@@ -57,7 +57,9 @@ canvas {
 #welcome-screen,
 #flappy-welcome,
 #game-over,
-#flappy-game-over {
+#flappy-game-over,
+#angry-welcome,
+#angry-game-over {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -97,6 +99,19 @@ canvas {
 #flappy-game-over h1 {
     color: var(--neon-blue);
     text-shadow: 0 0 10px var(--neon-blue);
+}
+
+#angry-welcome,
+#angry-game-over {
+    border: 2px solid var(--neon-green);
+    box-shadow: 0 0 30px var(--neon-green);
+    width: min(520px, 90vw);
+}
+
+#angry-welcome h1,
+#angry-game-over h1 {
+    color: var(--neon-green);
+    text-shadow: 0 0 10px var(--neon-green);
 }
 
 /* Menu buttons */

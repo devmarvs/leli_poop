@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20">
+  <!-- Wood Platform -->
+  <defs>
+    <linearGradient id="woodGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B4513;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A0522D;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Platform base -->
+  <rect x="0" y="0" width="100" height="20" fill="url(#woodGradient)" stroke="#000" stroke-width="1"/>
+
+  <!-- Wood grain lines -->
+  <line x1="10" y1="0" x2="10" y2="20" stroke="#654321" stroke-width="0.5"/>
+  <line x1="30" y1="0" x2="30" y2="20" stroke="#654321" stroke-width="0.5"/>
+  <line x1="50" y1="0" x2="50" y2="20" stroke="#654321" stroke-width="0.5"/>
+  <line x1="70" y1="0" x2="70" y2="20" stroke="#654321" stroke-width="0.5"/>
+  <line x1="90" y1="0" x2="90" y2="20" stroke="#654321" stroke-width="0.5"/>
+
+  <!-- Nail holes -->
+  <circle cx="20" cy="10" r="1" fill="#000"/>
+  <circle cx="40" cy="10" r="1" fill="#000"/>
+  <circle cx="60" cy="10" r="1" fill="#000"/>
+  <circle cx="80" cy="10" r="1" fill="#000"/>
+</svg>

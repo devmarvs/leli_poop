@@ -22,15 +22,20 @@ const FlappyGame = {
     PIPE_SPAWN_RATE: 2000,
     pipeTimer: 0,
 
-    // Character image
+    // Character images
     birdImage: null,
     birdImageLoaded: false,
+    
+    // Wing animation
+    wingFlapTimer: 0,
+    wingFlapSpeed: 8, // flaps per second
+    showWingUp: true,
 
     init: function () {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
 
-        // Load character image
+        // Load character image (PNG fallback)
         this.birdImage = new Image();
         this.birdImage.onload = () => {
             this.birdImageLoaded = true;
@@ -138,6 +143,13 @@ const FlappyGame = {
         // Update bird
         this.bird.velocity += this.GRAVITY * dt;
         this.bird.y += this.bird.velocity * dt;
+
+        // Update wing flapping animation
+        this.wingFlapTimer += dt * this.wingFlapSpeed;
+        if (this.wingFlapTimer >= 1) {
+            this.wingFlapTimer = 0;
+            this.showWingUp = !this.showWingUp;
+        }
 
         // Update clouds (move at different speeds)
         this.clouds.forEach(cloud => {
@@ -265,43 +277,76 @@ const FlappyGame = {
 
         ctx.shadowBlur = 0;
 
-        // Draw bird as circle
+        // Draw kuhkayi photo masked to a circle with animated wings
+        ctx.save();
+        ctx.translate(this.bird.x + this.bird.width / 2, this.bird.y + this.bird.height / 2);
+        const rotation = Math.min(Math.max(this.bird.velocity / 500, -0.5), 0.5);
+        ctx.rotate(rotation);
+
+        // Wings sit behind the photo and flap
+        this.drawWingAnimation(ctx);
+
+        // Photo clipped to circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, this.bird.width / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
         if (this.birdImageLoaded) {
-            ctx.save();
-            ctx.translate(this.bird.x + this.bird.width / 2, this.bird.y + this.bird.height / 2);
-            // Rotate based on velocity
-            const rotation = Math.min(Math.max(this.bird.velocity / 500, -0.5), 0.5);
-            ctx.rotate(rotation);
-
-            // Clip to circle
-            ctx.beginPath();
-            ctx.arc(0, 0, this.bird.width / 2, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.clip();
-
-            // Draw image
             ctx.drawImage(this.birdImage, -this.bird.width / 2, -this.bird.height / 2, this.bird.width, this.bird.height);
-            ctx.restore();
-
-            // Optional: Draw border around circle
-            ctx.save();
-            ctx.translate(this.bird.x + this.bird.width / 2, this.bird.y + this.bird.height / 2);
-            ctx.rotate(rotation);
-            ctx.beginPath();
-            ctx.arc(0, 0, this.bird.width / 2, 0, Math.PI * 2);
-            ctx.strokeStyle = '#00f3ff';
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 5;
-            ctx.shadowColor = '#00f3ff';
-            ctx.stroke();
-            ctx.restore();
         } else {
-            // Fallback emoji
-            ctx.font = '40px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('😃', this.bird.x + this.bird.width / 2, this.bird.y + this.bird.height / 2);
+            ctx.fillStyle = '#ffce8a';
+            ctx.fillRect(-this.bird.width / 2, -this.bird.height / 2, this.bird.width, this.bird.height);
         }
+        ctx.restore();
+
+        // Border ring
+        ctx.beginPath();
+        ctx.arc(0, 0, this.bird.width / 2, 0, Math.PI * 2);
+        ctx.strokeStyle = '#00f3ff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = '#00f3ff';
+        ctx.stroke();
+
+        ctx.restore();
+    },
+
+    // Draw wing flapping animation overlay
+    drawWingAnimation: function (ctx) {
+        const wingLift = this.showWingUp ? -10 : 10;
+        const wingAngle = this.showWingUp ? -0.4 : 0.35;
+        const spread = 26;
+        const wingW = 12;
+        const wingH = 18;
+
+        ctx.fillStyle = '#fdf5e6';
+        ctx.strokeStyle = '#c49a6c';
+        ctx.lineWidth = 2;
+
+        const drawWing = (side) => {
+            ctx.save();
+            const direction = side === 'left' ? -1 : 1;
+            ctx.translate(direction * spread, wingLift);
+            ctx.rotate(direction * wingAngle);
+
+            // Primary wing shape
+            ctx.beginPath();
+            ctx.ellipse(0, 0, wingW, wingH, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Inner detail
+            ctx.fillStyle = '#f0e1c5';
+            ctx.beginPath();
+            ctx.ellipse(0, -4, wingW * 0.7, wingH * 0.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        };
+
+        drawWing('left');
+        drawWing('right');
     },
 
     updateUI: function () {

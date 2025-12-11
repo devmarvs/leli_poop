@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Realistic Pig Target Sprite -->
+  <defs>
+    <linearGradient id="pigGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFB6C1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF69B4;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="snoutGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF69B4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF1493;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Body -->
+  <ellipse cx="50" cy="65" rx="32" ry="28" fill="url(#pigGradient)" stroke="#000" stroke-width="2"/>
+
+  <!-- Head -->
+  <circle cx="50" cy="40" r="22" fill="url(#pigGradient)" stroke="#000" stroke-width="2"/>
+
+  <!-- Ears - more pig-like -->
+  <ellipse cx="35" cy="25" rx="10" ry="8" fill="url(#pigGradient)" stroke="#000" stroke-width="1"/>
+  <ellipse cx="65" cy="25" rx="10" ry="8" fill="url(#pigGradient)" stroke="#000" stroke-width="1"/>
+  <!-- Inner ears -->
+  <ellipse cx="35" cy="26" rx="6" ry="5" fill="#FFB6C1" stroke="#000" stroke-width="0.5"/>
+  <ellipse cx="65" cy="26" rx="6" ry="5" fill="#FFB6C1" stroke="#000" stroke-width="0.5"/>
+
+  <!-- Snout - more prominent and pig-like -->
+  <ellipse cx="50" cy="35" rx="12" ry="10" fill="url(#snoutGradient)" stroke="#000" stroke-width="1.5"/>
+
+  <!-- Nostrils - larger and more realistic -->
+  <ellipse cx="47" cy="33" rx="2.5" ry="4" fill="#000000"/>
+  <ellipse cx="53" cy="33" rx="2.5" ry="4" fill="#000000"/>
+
+  <!-- Eyes - more pig-like -->
+  <ellipse cx="42" cy="38" rx="4" ry="3" fill="#FFFFFF" stroke="#000" stroke-width="1"/>
+  <ellipse cx="58" cy="38" rx="4" ry="3" fill="#FFFFFF" stroke="#000" stroke-width="1"/>
+  <circle cx="42" cy="38" r="1.5" fill="#000000"/>
+  <circle cx="58" cy="38" r="1.5" fill="#000000"/>
+
+  <!-- Cheeks -->
+  <circle cx="35" cy="42" r="3" fill="#FFB6C1" opacity="0.7"/>
+  <circle cx="65" cy="42" r="3" fill="#FFB6C1" opacity="0.7"/>
+
+  <!-- Legs - more realistic pig legs -->
+  <rect x="38" y="85" width="4" height="8" rx="2" fill="#FF1493" stroke="#000" stroke-width="1"/>
+  <rect x="48" y="85" width="4" height="8" rx="2" fill="#FF1493" stroke="#000" stroke-width="1"/>
+  <rect x="58" y="85" width="4" height="8" rx="2" fill="#FF1493" stroke="#000" stroke-width="1"/>
+  <rect x="68" y="85" width="4" height="8" rx="2" fill="#FF1493" stroke="#000" stroke-width="1"/>
+
+  <!-- Hooves -->
+  <ellipse cx="40" cy="93" rx="3" ry="2" fill="#000000"/>
+  <ellipse cx="50" cy="93" rx="3" ry="2" fill="#000000"/>
+  <ellipse cx="60" cy="93" rx="3" ry="2" fill="#000000"/>
+  <ellipse cx="70" cy="93" rx="3" ry="2" fill="#000000"/>
+
+  <!-- Tail - curly pig tail -->
+  <path d="M 78 65 Q 85 60 82 70 Q 88 75 82 78" fill="none" stroke="#FF69B4" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Body spots for realism -->
+  <circle cx="42" cy="68" r="3" fill="#FFB6C1" opacity="0.6"/>
+  <circle cx="58" cy="62" r="2.5" fill="#FFB6C1" opacity="0.6"/>
+  
+  <!-- Belly highlight -->
+  <ellipse cx="50" cy="72" rx="20" ry="15" fill="#FFFFFF" opacity="0.2"/>
+</svg>

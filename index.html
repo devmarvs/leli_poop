@@ -19,6 +19,7 @@
                 <div class="menu-buttons">
                     <button id="play-leli-btn" class="menu-btn">🚽 Play Leli Poop</button>
                     <button id="play-flappy-btn" class="menu-btn">🐦 Play Kuh Kayi Flap</button>
+                    <button id="play-angry-btn" class="menu-btn">😡 Play Angry Leli</button>
                 </div>
             </div>
 
@@ -45,10 +46,36 @@
             <!-- Leli Poop Game Over -->
             <div id="game-over" class="hidden">
                 <h1>GAME OVER</h1>
-                <img src="assets/leli-sad.jpg" alt="Leli sad" class="gameover-image">
-                <p>Final Score: <span id="final-score">0</span></p>
-                <button id="restart-btn">Try Again</button>
-                <button id="menu-from-leli" class="back-btn">← Back to Menu</button>
+                    <img src="assets/leli-sad.jpg" alt="Leli sad" class="gameover-image">
+                    <p>Final Score: <span id="final-score">0</span></p>
+                    <button id="restart-btn">Try Again</button>
+                    <button id="menu-from-leli" class="back-btn">← Back to Menu</button>
+                </div>
+
+            <!-- Angry Leli Welcome -->
+            <div id="angry-welcome" class="hidden">
+                <h1>Angry Leli</h1>
+                <div class="welcome-content">
+                    <div class="welcome-text">
+                        <p>Pull back the sling and launch Leli to knock out the targets!</p>
+                        <div class="instructions">
+                            <p><strong>Desktop:</strong> Click + drag to aim, release to fire</p>
+                            <p><strong>Mobile:</strong> Tap + drag to aim, release to launch</p>
+                        </div>
+                        <button id="start-angry-btn">Start Game</button>
+                        <button id="back-to-menu-angry" class="back-btn">← Back to Menu</button>
+                    </div>
+                    <img src="assets/leli-angry.png" alt="Angry Leli" class="welcome-image">
+                </div>
+            </div>
+
+            <!-- Angry Leli Game Over -->
+            <div id="angry-game-over" class="hidden">
+                <h1>GAME OVER</h1>
+                <img src="assets/leli-cry.png" alt="Leli crying" class="gameover-image">
+                <p>Final Score: <span id="angry-final-score">0</span></p>
+                <button id="restart-angry-btn">Try Again</button>
+                <button id="menu-from-angry" class="back-btn">← Back to Menu</button>
             </div>
 
             <!-- Kuh Kayi Flap Welcome -->

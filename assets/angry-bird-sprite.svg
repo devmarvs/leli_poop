@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Angry Leli Bird Sprite -->
+  <defs>
+    <linearGradient id="birdGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFD93D;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Body -->
+  <circle cx="50" cy="50" r="40" fill="url(#birdGradient)" stroke="#000" stroke-width="2"/>
+
+  <!-- Beak -->
+  <path d="M80,45 Q85,40 85,35 Q85,30 80,25 Q75,20 70,25 Q65,30 70,35 Q70,40 75,45 Z" fill="#FFA500" stroke="#000" stroke-width="1"/>
+
+  <!-- Eye -->
+  <circle cx="60" cy="40" r="8" fill="#FFFFFF" stroke="#000" stroke-width="1"/>
+  <circle cx="60" cy="40" r="4" fill="#000000"/>
+
+  <!-- Angry Eyebrow -->
+  <path d="M55,30 Q60,25 65,30" stroke="#000" stroke-width="3" fill="none"/>
+
+  <!-- Wing -->
+  <path d="M30,50 Q20,40 25,30 Q30,20 40,25 Q50,30 45,40 Q40,50 35,55 Z" fill="#FF6B6B" stroke="#000" stroke-width="1"/>
+
+  <!-- Feet -->
+  <ellipse cx="45" cy="80" rx="8" ry="4" fill="#FFA500" stroke="#000" stroke-width="1"/>
+  <ellipse cx="55" cy="80" rx="8" ry="4" fill="#FFA500" stroke="#000" stroke-width="1"/>
+</svg>
