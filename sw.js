@@ -9,6 +9,7 @@ const ASSETS = [
     './assets/leli-sad.jpg',
     './assets/kuhkayi.png',
     './assets/kuhkayi-sad.png',
+    './assets/spawner.png',
     './assets/flintastek.mp3'
 ];
 

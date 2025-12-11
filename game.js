@@ -104,12 +104,20 @@ class Player {
 
 class Spawner {
     constructor() {
-        this.width = 50;
-        this.height = 50;
+        this.width = 60;
+        this.height = 60;
         this.x = canvas.width / 2;
         this.y = 50;
         this.direction = 1;
         this.timer = 0;
+
+        // Load spawner image
+        this.image = new Image();
+        this.imageLoaded = false;
+        this.image.onload = () => {
+            this.imageLoaded = true;
+        };
+        this.image.src = 'assets/spawner.png';
     }
 
     update(dt) {
@@ -129,14 +137,41 @@ class Spawner {
     }
 
     draw(ctx) {
-        // Draw the emoji
-        ctx.font = `${this.height}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#ff00ff';
-        ctx.fillText(ASSETS.enemy, this.x, this.y);
-        ctx.shadowBlur = 0;
+        if (this.imageLoaded) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+
+            // Clip to circle
+            ctx.beginPath();
+            ctx.arc(0, 0, this.width / 2, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+
+            // Draw image
+            ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
+            ctx.restore();
+
+            // Draw neon border
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.beginPath();
+            ctx.arc(0, 0, this.width / 2, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ff00ff';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff00ff';
+            ctx.stroke();
+            ctx.restore();
+        } else {
+            // Fallback emoji
+            ctx.font = `${this.height}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff00ff';
+            ctx.fillText(ASSETS.enemy, this.x, this.y);
+            ctx.shadowBlur = 0;
+        }
     }
 }
 
