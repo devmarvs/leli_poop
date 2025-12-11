@@ -52,6 +52,36 @@ canvas {
     text-align: left;
 }
 
+#rotate-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    pointer-events: auto;
+    text-align: center;
+    padding: 20px;
+}
+
+#rotate-overlay .rotate-card {
+    border: 2px solid var(--neon-green);
+    box-shadow: 0 0 20px var(--neon-green);
+    padding: 20px 26px;
+    border-radius: 12px;
+    max-width: 420px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    font-size: 18px;
+    line-height: 1.4;
+}
+
+#rotate-overlay .rotate-icon {
+    font-size: 38px;
+    margin-bottom: 10px;
+}
+
 /* Modal screens - shared styling */
 #main-menu,
 #welcome-screen,

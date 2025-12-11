@@ -633,6 +633,48 @@ document.getElementById('restart-btn').addEventListener('click', resetGame);
 // =====================================
 
 let currentGame = null; // 'leli', 'flappy', or 'angry'
+let orientationBlocked = false;
+let pendingAngryStart = false;
+
+function isMobileDevice() {
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
+}
+
+function needsLandscapeForAngry() {
+    return isMobileDevice() && window.innerWidth < window.innerHeight;
+}
+
+function updateOrientationLock() {
+    const overlay = document.getElementById('rotate-overlay');
+    const shouldBlock = (currentGame === 'angry' || pendingAngryStart) && needsLandscapeForAngry();
+
+    if (overlay) {
+        overlay.classList.toggle('hidden', !shouldBlock);
+    }
+    orientationBlocked = shouldBlock;
+
+    if (shouldBlock) {
+        if (currentGame === 'angry') pendingAngryStart = true;
+        if (AngryLeliGame && AngryLeliGame.stop) AngryLeliGame.stop();
+        const board = document.getElementById('score-board');
+        if (board) board.classList.add('hidden');
+    }
+
+    return shouldBlock;
+}
+
+function handleOrientationChange() {
+    const wasBlocked = orientationBlocked;
+    const blocked = updateOrientationLock();
+
+    if (wasBlocked && !blocked && pendingAngryStart) {
+        pendingAngryStart = false;
+        startAngryGame();
+    }
+}
+['resize', 'orientationchange'].forEach(event => {
+    window.addEventListener(event, handleOrientationChange);
+});
 
 // Background Music
 let bgMusic = null;
@@ -679,6 +721,10 @@ function showMainMenu() {
     // Stop any running game
     isGameStarted = false;
     isGameOver = false;
+    pendingAngryStart = false;
+    orientationBlocked = false;
+    const rotateOverlay = document.getElementById('rotate-overlay');
+    if (rotateOverlay) rotateOverlay.classList.add('hidden');
     if (typeof FlappyGame !== 'undefined') {
         FlappyGame.stop();
     }
@@ -748,6 +794,11 @@ function resetFlappyGame() {
 }
 
 function startAngryGame() {
+    if (updateOrientationLock()) {
+        pendingAngryStart = true;
+        return;
+    }
+    pendingAngryStart = false;
     document.getElementById('angry-welcome').classList.add('hidden');
     document.getElementById('angry-game-over').classList.add('hidden');
     document.getElementById('score-board').classList.remove('hidden');
