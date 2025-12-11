@@ -94,7 +94,6 @@ class Player {
         ctx.font = `${this.height}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        // Add a slight futuristic glow
         ctx.shadowBlur = 10;
         ctx.shadowColor = '#00f3ff';
         ctx.fillText(ASSETS.player, this.x + this.width / 2, this.y + this.height);
@@ -182,10 +181,29 @@ class Projectile {
         this.vy = 0;
         this.radius = 15;
         this.markedForDeletion = false;
+
+        // Random speed boost settings
+        this.speedBoostTimer = 0;
+        this.nextBoostTime = 500 + Math.random() * 1000; // Random time between boosts
+        this.isBoosting = false;
     }
 
     update(dt) {
         this.vy += GRAVITY * dt;
+
+        // Random sudden speed boost
+        this.speedBoostTimer += dt * 1000;
+        if (this.speedBoostTimer > this.nextBoostTime && !this.isBoosting) {
+            // Apply sudden speed boost!
+            this.vy += 150 + Math.random() * 200; // Add 150-350 extra velocity
+            this.isBoosting = true;
+            this.speedBoostTimer = 0;
+            this.nextBoostTime = 500 + Math.random() * 1000;
+        }
+        if (this.isBoosting && this.speedBoostTimer > 100) {
+            this.isBoosting = false;
+        }
+
         this.y += this.vy * dt;
 
         if (this.y > canvas.height) {
@@ -198,7 +216,13 @@ class Projectile {
         ctx.font = '30px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        // Glow effect when boosting
+        if (this.isBoosting) {
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#ff0000';
+        }
         ctx.fillText(ASSETS.projectile, this.x, this.y);
+        ctx.shadowBlur = 0;
     }
 }
 
@@ -525,6 +549,7 @@ async function startGame() {
 
     isGameStarted = true;
     document.getElementById('welcome-screen').classList.add('hidden');
+    document.getElementById('score-board').classList.remove('hidden');
 
     // Request Device Orientation Permission (iOS 13+)
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -698,6 +723,33 @@ document.getElementById('menu-from-flappy').addEventListener('click', showMainMe
 document.getElementById('start-flappy-btn').addEventListener('click', startFlappyGame);
 document.getElementById('restart-flappy-btn').addEventListener('click', resetFlappyGame);
 
+// Background drawing for Leli Poop (bathroom tiles)
+function drawBathroomBackground(ctx) {
+    const tileSize = 40;
+    const groutColor = '#1a1a2e';
+    const tileColor = '#252545';
+
+    // Fill with grout color first
+    ctx.fillStyle = groutColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw tiles
+    ctx.fillStyle = tileColor;
+    for (let y = 0; y < canvas.height; y += tileSize) {
+        for (let x = 0; x < canvas.width; x += tileSize) {
+            ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
+        }
+    }
+
+    // Add subtle shine effect on some tiles
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+    for (let y = 0; y < canvas.height; y += tileSize * 2) {
+        for (let x = 0; x < canvas.width; x += tileSize * 2) {
+            ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
+        }
+    }
+}
+
 // Main Loop
 function gameLoop(timestamp) {
     if (isGameOver || !isGameStarted) return;
@@ -707,7 +759,9 @@ function gameLoop(timestamp) {
 
     if (isNaN(dt)) dt = 0;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Clear canvas (simple dark background)
+    ctx.fillStyle = '#0a0a15';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Update
     player.update(dt);

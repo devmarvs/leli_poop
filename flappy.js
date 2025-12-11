@@ -11,6 +11,7 @@ const FlappyGame = {
     // Game objects
     bird: null,
     pipes: [],
+    clouds: [], // Animated clouds
 
     // Configuration
     GRAVITY: 800,
@@ -38,6 +39,31 @@ const FlappyGame = {
 
         // Setup event listeners
         this.setupControls();
+
+        // Initialize clouds
+        this.initClouds();
+    },
+
+    initClouds: function () {
+        this.clouds = [];
+        for (let i = 0; i < 8; i++) {
+            this.clouds.push({
+                x: Math.random() * (this.canvas.width + 200),
+                y: Math.random() * (this.canvas.height * 0.6), // Top 60% of screen
+                size: 30 + Math.random() * 50,
+                speed: 20 + Math.random() * 40 // Different speeds for parallax
+            });
+        }
+    },
+
+    // Draw a fluffy cloud at position
+    drawCloud: function (ctx, x, y, size) {
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
+        ctx.arc(x + size * 0.4, y - size * 0.2, size * 0.4, 0, Math.PI * 2);
+        ctx.arc(x + size * 0.8, y, size * 0.5, 0, Math.PI * 2);
+        ctx.arc(x + size * 0.4, y + size * 0.2, size * 0.35, 0, Math.PI * 2);
+        ctx.fill();
     },
 
     setupControls: function () {
@@ -81,6 +107,9 @@ const FlappyGame = {
         this.pipes = [];
         this.pipeTimer = 0;
 
+        // Reinitialize clouds
+        this.initClouds();
+
         // Initialize bird
         this.bird = {
             x: this.canvas.width * 0.2,
@@ -109,6 +138,16 @@ const FlappyGame = {
         // Update bird
         this.bird.velocity += this.GRAVITY * dt;
         this.bird.y += this.bird.velocity * dt;
+
+        // Update clouds (move at different speeds)
+        this.clouds.forEach(cloud => {
+            cloud.x -= cloud.speed * dt;
+            // Wrap around when off screen
+            if (cloud.x + cloud.size < 0) {
+                cloud.x = this.canvas.width + cloud.size;
+                cloud.y = Math.random() * (this.canvas.height * 0.6);
+            }
+        });
 
         // Spawn pipes
         this.pipeTimer += dt * 1000;
@@ -193,19 +232,35 @@ const FlappyGame = {
     draw: function () {
         const ctx = this.ctx;
 
-        // Clear canvas
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Draw sky gradient background
+        const gradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+        gradient.addColorStop(0, '#1e90ff');  // Dodger blue at top
+        gradient.addColorStop(0.6, '#87ceeb'); // Sky blue
+        gradient.addColorStop(1, '#b0e0e6');   // Powder blue at bottom
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Draw clouds (animated)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        this.clouds.forEach(cloud => {
+            this.drawCloud(ctx, cloud.x, cloud.y, cloud.size);
+        });
 
         // Draw pipes
-        ctx.fillStyle = '#00ff00';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#00ff00';
+        ctx.fillStyle = '#228B22'; // Forest green
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = '#006400';
 
         this.pipes.forEach(pipe => {
             // Top pipe
             ctx.fillRect(pipe.x, 0, this.PIPE_WIDTH, pipe.gapY);
+            // Pipe cap (top)
+            ctx.fillRect(pipe.x - 3, pipe.gapY - 20, this.PIPE_WIDTH + 6, 20);
+
             // Bottom pipe
             ctx.fillRect(pipe.x, pipe.gapY + this.PIPE_GAP, this.PIPE_WIDTH, this.canvas.height - pipe.gapY - this.PIPE_GAP);
+            // Pipe cap (bottom)
+            ctx.fillRect(pipe.x - 3, pipe.gapY + this.PIPE_GAP, this.PIPE_WIDTH + 6, 20);
         });
 
         ctx.shadowBlur = 0;
