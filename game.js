@@ -7,16 +7,20 @@ let score = 0;
 let isGameOver = false;
 let isGameStarted = false;
 let player, spawner, projectiles;
+let stars = [];
+let starTick = 0;
 
 // Configuration
 const GRAVITY = 200; // pixels per second squared
 const SPAWN_RATE = 2000; // ms
 const PLAYER_SPEED = 400; // pixels per second
 const SPAWNER_SPEED = 150; // pixels per second
+const STAR_DENSITY = 0.00004; // stars per pixel squared (scaled below)
 
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    generateStars();
     // Reposition player if they are off screen
     if (player) {
         player.y = canvas.height - player.height - 10;
@@ -32,6 +36,23 @@ const ASSETS = {
     enemy: '🧎‍♀️', // Kneeling person
     projectile: '💩'
 };
+
+// Background stars
+function generateStars() {
+    const area = canvas.width * canvas.height;
+    const targetCount = Math.min(250, Math.max(60, Math.floor(area * STAR_DENSITY)));
+    stars = [];
+    for (let i = 0; i < targetCount; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: 0.6 + Math.random() * 1.6,
+            baseAlpha: 0.25 + Math.random() * 0.45,
+            twinkleSpeed: 0.8 + Math.random() * 1.6,
+            twinkleOffset: Math.random() * Math.PI * 2
+        });
+    }
+}
 
 // Input
 const keys = {
@@ -94,6 +115,7 @@ class Player {
         ctx.font = `${this.height}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#ffffff';
         ctx.shadowBlur = 10;
         ctx.shadowColor = '#00f3ff';
         ctx.fillText(ASSETS.player, this.x + this.width / 2, this.y + this.height);
@@ -750,6 +772,46 @@ function drawBathroomBackground(ctx) {
     }
 }
 
+// Draw tile floor at bottom of screen
+function drawTileFloor(ctx) {
+    const tileSize = 30;
+    const floorHeight = tileSize; // Enforce a single row of tiles
+    const floorY = canvas.height - floorHeight;
+    const groutColor = '#2a2a3e';
+    const tileColor = '#3a3a55';
+
+    // Fill floor area with grout color
+    ctx.fillStyle = groutColor;
+    ctx.fillRect(0, floorY, canvas.width, floorHeight);
+
+    // Draw a single row of tiles
+    ctx.fillStyle = tileColor;
+    for (let x = 0; x < canvas.width; x += tileSize) {
+        ctx.fillRect(x + 1, floorY + 1, tileSize - 2, tileSize - 2);
+    }
+
+    // Add subtle shine on alternating tiles
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    for (let x = 0; x < canvas.width; x += tileSize * 2) {
+        ctx.fillRect(x + 1, floorY + 1, tileSize - 2, tileSize - 2);
+    }
+}
+
+// Draw twinkling stars behind the action
+function drawStars(ctx, dt) {
+    starTick += dt;
+    ctx.save();
+    for (const star of stars) {
+        const alpha = star.baseAlpha + Math.sin(star.twinkleOffset + starTick * star.twinkleSpeed * Math.PI * 2) * 0.25;
+        const clampedAlpha = Math.max(0, Math.min(1, alpha));
+        ctx.fillStyle = `rgba(255,255,255,${clampedAlpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
 // Main Loop
 function gameLoop(timestamp) {
     if (isGameOver || !isGameStarted) return;
@@ -762,6 +824,12 @@ function gameLoop(timestamp) {
     // Clear canvas (simple dark background)
     ctx.fillStyle = '#0a0a15';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Star field backdrop
+    drawStars(ctx, dt);
+
+    // Draw tile floor at bottom
+    drawTileFloor(ctx);
 
     // Update
     player.update(dt);
