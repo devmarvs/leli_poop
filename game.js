@@ -1487,9 +1487,8 @@ AngryLeliGame = {
         ctx.save();
         ctx.fillStyle = '#fff';
         ctx.font = '16px Arial';
-        ctx.textAlign = 'right';
-        const pad = 20;
-        const x = canvas.width - pad;
+        ctx.textAlign = 'center';
+        const x = canvas.width / 2;
         ctx.fillText(`Birds Left: ${this.birdsRemaining + (this.currentBird ? 1 : 0)}`, x, 30);
         ctx.fillText(`Wave: ${this.currentLevel + 1}`, x, 50);
         ctx.restore();
