@@ -32,6 +32,8 @@ function resize() {
     }
 }
 window.addEventListener('resize', resize);
+// Some mobile browsers don't fire resize on rotation.
+window.addEventListener('orientationchange', resize);
 resize();
 
 // Assets (Emojis as fallback)
