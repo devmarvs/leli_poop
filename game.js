@@ -1414,7 +1414,8 @@ AngryLeliGame = {
     lastTime: 0,
     score: 0,
     birdsRemaining: 0,
-    maxBirds: 5,
+    maxBirds: 6,
+    totalStages: 8,
     birds: [],
     pigs: [],
     obstacles: [],
@@ -1429,6 +1430,13 @@ AngryLeliGame = {
     birdRadius: 18,
     pigRadius: 16,
     nextBirdTimer: 0,
+    pendingLevel: null,
+    isStageTransitioning: false,
+    stageTransitionTimer: 0,
+    stageTransitionDelay: 1.7,
+    stageBannerTimer: 0,
+    stageBannerText: '',
+    stageBannerEl: null,
     images: {},
     imagesLoaded: false,
     threeRenderer: null,
@@ -1439,6 +1447,7 @@ AngryLeliGame = {
         this.onResize();
         this.setupControls();
         this.initThreeRenderer();
+        this.ensureStageBanner();
     },
 
     initThreeRenderer() {
@@ -1449,6 +1458,40 @@ AngryLeliGame = {
                 this.threeRenderer.setVisible(false);
             }
         });
+    },
+
+    ensureStageBanner() {
+        if (this.stageBannerEl) return;
+        const uiLayer = document.getElementById('ui-layer');
+        if (!uiLayer) return;
+        const banner = document.createElement('div');
+        banner.id = 'angry-stage-banner';
+        banner.classList.add('hidden');
+        uiLayer.appendChild(banner);
+        this.stageBannerEl = banner;
+    },
+
+    showStageBanner(text, duration = 1.5) {
+        this.ensureStageBanner();
+        this.stageBannerText = text;
+        this.stageBannerTimer = Math.max(0.4, duration);
+        if (!this.stageBannerEl) return;
+        this.stageBannerEl.textContent = text;
+        this.stageBannerEl.classList.remove('hidden');
+    },
+
+    hideStageBanner() {
+        this.stageBannerTimer = 0;
+        if (!this.stageBannerEl) return;
+        this.stageBannerEl.classList.add('hidden');
+    },
+
+    updateStageBanner(dt) {
+        if (this.stageBannerTimer <= 0) return;
+        this.stageBannerTimer -= dt;
+        if (this.stageBannerTimer <= 0) {
+            this.hideStageBanner();
+        }
     },
 
     loadImages() {
@@ -1609,13 +1652,29 @@ AngryLeliGame = {
     buildLevel(levelIndex) {
         const g = this.groundY;
         const r = this.pigRadius;
-        // Push targets right, but not as extreme
-        const baseX = Math.max(200, Math.min(canvas.width - 200, Math.max(canvas.width * 0.60, this.slingAnchor.x + 340)));
         const platformH = 18;
+        const shortH = 60;
         const tallH = 90;
+        const towerH = 126;
+        const stageProgress = Math.min(levelIndex, this.totalStages - 1);
+        const baseX = Math.max(220, Math.min(canvas.width - 280, Math.max(canvas.width * 0.56, this.slingAnchor.x + 320 + stageProgress * 10)));
+        const healthScale = 1 + stageProgress * 0.09;
+
+        const clampPig = (pig) => ({
+            ...pig,
+            x: Math.max(pig.r + 20, Math.min(canvas.width - pig.r - 20, pig.x)),
+            y: Math.max(pig.r + 40, Math.min(g - pig.r, pig.y))
+        });
+
+        const clampObstacle = (obstacle) => {
+            const x = Math.max(20, Math.min(canvas.width - obstacle.w - 20, obstacle.x));
+            const y = Math.max(40, Math.min(g - obstacle.h, obstacle.y));
+            const scaledHealth = Math.max(1, Math.round((obstacle.health || 3) * healthScale * 10) / 10);
+            return { ...obstacle, x, y, health: scaledHealth };
+        };
 
         const layouts = [
-            // Level 0: original simple cluster
+            // Stage 1: training cluster
             () => ({
                 pigs: [
                     { x: baseX, y: g - r, r },
@@ -1625,7 +1684,22 @@ AngryLeliGame = {
                 ],
                 obstacles: []
             }),
-            // Level 1: two pillars and a roof
+            // Stage 2: low bunker
+            () => ({
+                pigs: [
+                    { x: baseX - 12, y: g - r, r },
+                    { x: baseX + 58, y: g - r, r },
+                    { x: baseX + 125, y: g - r, r },
+                    { x: baseX + 55, y: g - shortH - platformH - r * 1.2, r }
+                ],
+                obstacles: [
+                    { x: baseX - 60, y: g - platformH, w: 220, h: platformH, health: 4 },
+                    { x: baseX - 24, y: g - platformH - shortH, w: 20, h: shortH, health: 3 },
+                    { x: baseX + 118, y: g - platformH - shortH, w: 20, h: shortH, health: 3 },
+                    { x: baseX - 40, y: g - platformH - shortH - platformH, w: 200, h: platformH, health: 4 }
+                ]
+            }),
+            // Stage 3: two pillars and a roof
             () => ({
                 pigs: [
                     { x: baseX - 10, y: g - r, r },
@@ -1641,7 +1715,7 @@ AngryLeliGame = {
                     { x: baseX - 40, y: g - platformH - tallH - platformH, w: 240, h: platformH, health: 5 }
                 ]
             }),
-            // Level 2: stacked platforms with roof
+            // Stage 4: stacked platforms
             () => ({
                 pigs: [
                     { x: baseX + 10, y: g - r, r },
@@ -1657,18 +1731,106 @@ AngryLeliGame = {
                     { x: baseX - 10, y: g - platformH - 70, w: 240, h: 16, health: 4 },
                     { x: baseX + 60, y: g - platformH - 70 - 70, w: 120, h: 16, health: 3 }
                 ]
+            }),
+            // Stage 5: pyramid hold
+            () => ({
+                pigs: [
+                    { x: baseX - 20, y: g - r, r },
+                    { x: baseX + 50, y: g - r, r },
+                    { x: baseX + 120, y: g - r, r },
+                    { x: baseX + 190, y: g - r, r },
+                    { x: baseX + 34, y: g - shortH - platformH - r, r },
+                    { x: baseX + 136, y: g - shortH - platformH - r, r },
+                    { x: baseX + 85, y: g - shortH * 2 - platformH * 2 - r, r }
+                ],
+                obstacles: [
+                    { x: baseX - 60, y: g - platformH, w: 290, h: platformH, health: 5 },
+                    { x: baseX - 18, y: g - shortH - platformH, w: 18, h: shortH, health: 4 },
+                    { x: baseX + 78, y: g - shortH - platformH, w: 18, h: shortH, health: 4 },
+                    { x: baseX + 176, y: g - shortH - platformH, w: 18, h: shortH, health: 4 },
+                    { x: baseX - 30, y: g - shortH - platformH * 2, w: 220, h: platformH, health: 5 },
+                    { x: baseX + 62, y: g - shortH * 2 - platformH * 2, w: 18, h: shortH, health: 3 },
+                    { x: baseX + 28, y: g - shortH * 2 - platformH * 3, w: 120, h: platformH, health: 4 }
+                ]
+            }),
+            // Stage 6: split bunkers
+            () => ({
+                pigs: [
+                    { x: baseX - 60, y: g - r, r },
+                    { x: baseX + 10, y: g - r, r },
+                    { x: baseX + 228, y: g - r, r },
+                    { x: baseX + 300, y: g - r, r },
+                    { x: baseX - 20, y: g - shortH - platformH - r, r },
+                    { x: baseX + 250, y: g - shortH - platformH - r, r }
+                ],
+                obstacles: [
+                    { x: baseX - 110, y: g - platformH, w: 180, h: platformH, health: 5 },
+                    { x: baseX - 88, y: g - platformH - shortH, w: 18, h: shortH, health: 4 },
+                    { x: baseX + 36, y: g - platformH - shortH, w: 18, h: shortH, health: 4 },
+                    { x: baseX - 96, y: g - platformH - shortH - platformH, w: 160, h: platformH, health: 5 },
+                    { x: baseX + 170, y: g - platformH, w: 180, h: platformH, health: 5 },
+                    { x: baseX + 190, y: g - platformH - shortH, w: 18, h: shortH, health: 4 },
+                    { x: baseX + 314, y: g - platformH - shortH, w: 18, h: shortH, health: 4 },
+                    { x: baseX + 184, y: g - platformH - shortH - platformH, w: 160, h: platformH, health: 5 }
+                ]
+            }),
+            // Stage 7: high castle
+            () => ({
+                pigs: [
+                    { x: baseX - 22, y: g - r, r },
+                    { x: baseX + 58, y: g - r, r },
+                    { x: baseX + 138, y: g - r, r },
+                    { x: baseX + 218, y: g - r, r },
+                    { x: baseX + 20, y: g - tallH - platformH - r, r },
+                    { x: baseX + 176, y: g - tallH - platformH - r, r },
+                    { x: baseX + 98, y: g - towerH - platformH * 2 - r, r }
+                ],
+                obstacles: [
+                    { x: baseX - 70, y: g - platformH, w: 320, h: platformH, health: 6 },
+                    { x: baseX - 42, y: g - platformH - tallH, w: 20, h: tallH, health: 5 },
+                    { x: baseX + 114, y: g - platformH - tallH, w: 20, h: tallH, health: 5 },
+                    { x: baseX + 200, y: g - platformH - tallH, w: 20, h: tallH, health: 5 },
+                    { x: baseX - 58, y: g - platformH - tallH - platformH, w: 300, h: platformH, health: 6 },
+                    { x: baseX + 68, y: g - platformH - towerH - platformH, w: 20, h: towerH, health: 5 },
+                    { x: baseX + 18, y: g - platformH - towerH - platformH * 2, w: 160, h: platformH, health: 6 }
+                ]
+            }),
+            // Stage 8: final fortress
+            () => ({
+                pigs: [
+                    { x: baseX - 80, y: g - r, r },
+                    { x: baseX - 10, y: g - r, r },
+                    { x: baseX + 60, y: g - r, r },
+                    { x: baseX + 130, y: g - r, r },
+                    { x: baseX + 200, y: g - r, r },
+                    { x: baseX + 270, y: g - r, r },
+                    { x: baseX - 20, y: g - shortH - platformH - r, r },
+                    { x: baseX + 190, y: g - shortH - platformH - r, r },
+                    { x: baseX + 85, y: g - tallH - platformH - r, r },
+                    { x: baseX + 85, y: g - towerH - platformH * 2 - r, r }
+                ],
+                obstacles: [
+                    { x: baseX - 130, y: g - platformH, w: 440, h: platformH, health: 7 },
+                    { x: baseX - 96, y: g - platformH - shortH, w: 20, h: shortH, health: 5 },
+                    { x: baseX + 18, y: g - platformH - shortH, w: 20, h: shortH, health: 5 },
+                    { x: baseX + 132, y: g - platformH - shortH, w: 20, h: shortH, health: 5 },
+                    { x: baseX + 246, y: g - platformH - shortH, w: 20, h: shortH, health: 5 },
+                    { x: baseX - 106, y: g - platformH - shortH - platformH, w: 390, h: platformH, health: 7 },
+                    { x: baseX + 56, y: g - platformH - tallH - platformH, w: 20, h: tallH, health: 6 },
+                    { x: baseX + 108, y: g - platformH - tallH - platformH, w: 20, h: tallH, health: 6 },
+                    { x: baseX + 36, y: g - platformH - tallH - platformH * 2, w: 110, h: platformH, health: 7 },
+                    { x: baseX + 70, y: g - platformH - towerH - platformH * 2, w: 20, h: shortH, health: 6 },
+                    { x: baseX + 10, y: g - platformH - towerH - platformH * 3, w: 140, h: platformH, health: 7 }
+                ]
             })
         ];
 
-        const builder = layouts[levelIndex % layouts.length];
+        const stage = Math.max(0, Math.min(this.totalStages - 1, levelIndex));
+        const builder = layouts[Math.min(stage, layouts.length - 1)];
         const { pigs, obstacles } = builder();
 
-        const normalizedPigs = pigs.map(p => ({ ...p, alive: true }));
-        const normalizedObstacles = obstacles.map(o => ({
-            ...o,
-            alive: true,
-            health: o.health || 3
-        }));
+        const normalizedPigs = pigs.map((pig) => ({ ...clampPig(pig), alive: true }));
+        const normalizedObstacles = obstacles.map((obstacle) => ({ ...clampObstacle(obstacle), alive: true }));
 
         return { pigs: normalizedPigs, obstacles: normalizedObstacles };
     },
@@ -1683,13 +1845,37 @@ AngryLeliGame = {
         this.currentBird = null;
         this.isDragging = false;
         this.nextBirdTimer = 0;
+        this.pendingLevel = null;
         this.prepareNextBird();
     },
 
     advanceLevel() {
-        // Reward a couple birds for clearing a wave
-        this.birdsRemaining = Math.max(this.birdsRemaining + 2, 2);
-        this.loadLevel(this.currentLevel + 1);
+        if (this.isStageTransitioning) return;
+
+        const stageNumber = this.currentLevel + 1;
+        const nextLevel = this.currentLevel + 1;
+        const stageBonus = 200 + this.currentLevel * 80;
+        this.score += stageBonus;
+        document.getElementById('score').innerText = this.score;
+
+        if (nextLevel >= this.totalStages) {
+            this.gameOver(true);
+            return;
+        }
+
+        const birdsAwarded = Math.max(1, 3 - Math.floor(nextLevel / 3));
+        this.birdsRemaining += birdsAwarded;
+        this.birds = [];
+        this.currentBird = null;
+        this.isDragging = false;
+        this.pendingLevel = nextLevel;
+        this.isStageTransitioning = true;
+        this.stageTransitionTimer = this.stageTransitionDelay;
+
+        this.showStageBanner(
+            `Stage ${stageNumber} clear! +${stageBonus} pts, +${birdsAwarded} bird${birdsAwarded === 1 ? '' : 's'}`,
+            this.stageTransitionDelay
+        );
     },
 
     start() {
@@ -1705,12 +1891,20 @@ AngryLeliGame = {
     reset() {
         this.score = 0;
         this.birdsRemaining = this.maxBirds;
+        this.pendingLevel = null;
+        this.isStageTransitioning = false;
+        this.stageTransitionTimer = 0;
         this.loadLevel(0);
         document.getElementById('score').innerText = this.score;
+        this.showStageBanner(`Stage 1 / ${this.totalStages}`, 1.3);
     },
 
     stop() {
         this.isRunning = false;
+        this.pendingLevel = null;
+        this.isStageTransitioning = false;
+        this.stageTransitionTimer = 0;
+        this.hideStageBanner();
         this.usingThreeRenderer = false;
         if (this.threeRenderer) {
             this.threeRenderer.setVisible(false);
@@ -1730,8 +1924,20 @@ AngryLeliGame = {
     },
 
     update(dt) {
-        this.updateBirds(dt);
         this.updateParticles(dt);
+        this.updateStageBanner(dt);
+
+        if (this.isStageTransitioning) {
+            this.stageTransitionTimer -= dt;
+            if (this.stageTransitionTimer <= 0 && Number.isInteger(this.pendingLevel)) {
+                this.isStageTransitioning = false;
+                this.loadLevel(this.pendingLevel);
+                this.showStageBanner(`Stage ${this.currentLevel + 1} / ${this.totalStages}`, 1.2);
+            }
+            return;
+        }
+
+        this.updateBirds(dt);
         this.cleanupObstacles();
         this.checkHits();
         this.handleNextBird(dt);
@@ -1879,6 +2085,8 @@ AngryLeliGame = {
     },
 
     checkGameOver() {
+        if (this.isStageTransitioning) return;
+
         const pigsAlive = this.pigs.some(p => p.alive);
         if (!pigsAlive) {
             this.advanceLevel();
@@ -1894,9 +2102,13 @@ AngryLeliGame = {
 
     gameOver(victory) {
         this.isRunning = false;
+        this.pendingLevel = null;
+        this.isStageTransitioning = false;
+        this.stageTransitionTimer = 0;
+        this.hideStageBanner();
         const title = document.querySelector('#angry-game-over h1');
         if (title) {
-            title.textContent = victory ? 'LEVEL CLEAR' : 'GAME OVER';
+            title.textContent = victory ? 'CAMPAIGN CLEAR' : 'GAME OVER';
         }
         document.getElementById('angry-final-score').innerText = this.score;
         document.getElementById('score-board').classList.add('hidden');
@@ -2083,7 +2295,10 @@ AngryLeliGame = {
         ctx.textAlign = 'center';
         const x = canvas.width / 2;
         ctx.fillText(`Birds Left: ${this.birdsRemaining + (this.currentBird ? 1 : 0)}`, x, 30);
-        ctx.fillText(`Wave: ${this.currentLevel + 1}`, x, 50);
+        ctx.fillText(`Stage: ${Math.min(this.currentLevel + 1, this.totalStages)} / ${this.totalStages}`, x, 50);
+        if (this.isStageTransitioning) {
+            ctx.fillText('Preparing next stage...', x, 70);
+        }
         ctx.restore();
     }
 };
