@@ -848,6 +848,565 @@ document.getElementById('restart-angry-btn').addEventListener('click', resetAngr
 // =====================================
 // ANGRY LELI (Angry Birds-style mini-game)
 // =====================================
+const THREE_JS_CDN = 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js';
+let threeJsLoadPromise = null;
+
+function ensureThreeJsLoaded() {
+    if (window.THREE) {
+        return Promise.resolve(window.THREE);
+    }
+    if (threeJsLoadPromise) {
+        return threeJsLoadPromise;
+    }
+
+    threeJsLoadPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-angry-three="true"]');
+        if (existing) {
+            existing.addEventListener('load', () => resolve(window.THREE || null), { once: true });
+            existing.addEventListener('error', () => reject(new Error('Failed to load Three.js')), { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = THREE_JS_CDN;
+        script.async = true;
+        script.dataset.angryThree = 'true';
+        script.onload = () => resolve(window.THREE || null);
+        script.onerror = () => reject(new Error('Failed to load Three.js'));
+        document.head.appendChild(script);
+    }).catch((err) => {
+        console.warn('Three.js unavailable, keeping 2D Angry Leli renderer.', err);
+        return null;
+    });
+
+    return threeJsLoadPromise;
+}
+
+class AngryLeliThreeRenderer {
+    constructor(hostCanvas) {
+        this.hostCanvas = hostCanvas;
+        this.container = hostCanvas.parentElement;
+        this.THREE = null;
+        this.renderer = null;
+        this.scene = null;
+        this.camera = null;
+        this.starField = null;
+        this.groundMesh = null;
+        this.floorGlow = null;
+        this.slingGroup = null;
+        this.bandLeft = null;
+        this.bandRight = null;
+        this.birdGroup = null;
+        this.pigGroup = null;
+        this.obstacleGroup = null;
+        this.particleGroup = null;
+        this.birdPool = [];
+        this.pigPool = [];
+        this.obstaclePool = [];
+        this.particlePool = [];
+        this.textures = {};
+        this.viewport = { w: 0, h: 0 };
+        this.clock = 0;
+        this.initPromise = null;
+        this.ready = false;
+    }
+
+    init() {
+        if (this.initPromise) return this.initPromise;
+        this.initPromise = ensureThreeJsLoaded().then((THREE) => {
+            if (!THREE || !this.container) return false;
+            this.THREE = THREE;
+            this.setupScene();
+            this.loadTextures();
+            this.ready = true;
+            this.setVisible(false);
+            return true;
+        });
+        return this.initPromise;
+    }
+
+    setupScene() {
+        const THREE = this.THREE;
+        this.renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true,
+            powerPreference: 'high-performance'
+        });
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.domElement.className = 'angry-three-layer hidden';
+        this.container.appendChild(this.renderer.domElement);
+
+        this.scene = new THREE.Scene();
+        this.scene.fog = new THREE.Fog(0x0b1528, 900, 1800);
+
+        this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 3000);
+        this.camera.position.set(0, 0, 900);
+        this.camera.lookAt(0, 0, 0);
+
+        const ambient = new THREE.AmbientLight(0x7894c8, 0.62);
+        this.scene.add(ambient);
+
+        const keyLight = new THREE.DirectionalLight(0xfff1da, 1.05);
+        keyLight.position.set(-240, 280, 460);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.set(1024, 1024);
+        keyLight.shadow.camera.near = 100;
+        keyLight.shadow.camera.far = 1200;
+        keyLight.shadow.camera.left = -700;
+        keyLight.shadow.camera.right = 700;
+        keyLight.shadow.camera.top = 500;
+        keyLight.shadow.camera.bottom = -500;
+        this.scene.add(keyLight);
+
+        const rim = new THREE.PointLight(0x5ab8ff, 0.8, 2600);
+        rim.position.set(320, 260, 320);
+        this.scene.add(rim);
+
+        const skyMaterial = new THREE.MeshBasicMaterial({
+            map: this.createSkyTexture(),
+            depthWrite: false
+        });
+        this.skyPlane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), skyMaterial);
+        this.skyPlane.position.z = -1000;
+        this.scene.add(this.skyPlane);
+
+        this.starField = this.createStarField();
+        this.scene.add(this.starField);
+
+        this.groundMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(1, 1, 250),
+            new THREE.MeshStandardMaterial({
+                color: 0x344869,
+                roughness: 0.82,
+                metalness: 0.12
+            })
+        );
+        this.groundMesh.receiveShadow = true;
+        this.scene.add(this.groundMesh);
+
+        this.floorGlow = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshBasicMaterial({
+                color: 0x6ec5ff,
+                opacity: 0.2,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            })
+        );
+        this.floorGlow.position.z = -170;
+        this.scene.add(this.floorGlow);
+
+        this.slingGroup = this.createSlingshot();
+        this.scene.add(this.slingGroup);
+
+        this.bandLeft = new THREE.Line(
+            new THREE.BufferGeometry(),
+            new THREE.LineBasicMaterial({ color: 0xd73a3a, linewidth: 2 })
+        );
+        this.bandRight = new THREE.Line(
+            new THREE.BufferGeometry(),
+            new THREE.LineBasicMaterial({ color: 0xd73a3a, linewidth: 2 })
+        );
+        this.scene.add(this.bandLeft);
+        this.scene.add(this.bandRight);
+
+        this.obstacleGroup = new THREE.Group();
+        this.pigGroup = new THREE.Group();
+        this.birdGroup = new THREE.Group();
+        this.particleGroup = new THREE.Group();
+        this.scene.add(this.obstacleGroup);
+        this.scene.add(this.pigGroup);
+        this.scene.add(this.birdGroup);
+        this.scene.add(this.particleGroup);
+    }
+
+    createSkyTexture() {
+        const c = document.createElement('canvas');
+        c.width = 512;
+        c.height = 512;
+        const g = c.getContext('2d');
+        const grad = g.createLinearGradient(0, 0, 0, c.height);
+        grad.addColorStop(0, '#081224');
+        grad.addColorStop(0.5, '#10213d');
+        grad.addColorStop(1, '#1a2f4d');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, c.width, c.height);
+        g.strokeStyle = 'rgba(255,255,255,0.04)';
+        for (let i = 0; i < 10; i++) {
+            g.beginPath();
+            g.moveTo(0, i * 56 + 20);
+            g.lineTo(c.width, i * 56 + 36);
+            g.stroke();
+        }
+        const tex = new this.THREE.CanvasTexture(c);
+        tex.colorSpace = this.THREE.SRGBColorSpace;
+        return tex;
+    }
+
+    createStarField() {
+        const THREE = this.THREE;
+        const count = 420;
+        const positions = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+            const i3 = i * 3;
+            positions[i3] = (Math.random() - 0.5) * 2800;
+            positions[i3 + 1] = (Math.random() - 0.5) * 1800;
+            positions[i3 + 2] = -400 - Math.random() * 900;
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+            color: 0xd7ecff,
+            size: 5,
+            transparent: true,
+            opacity: 0.8,
+            depthWrite: false
+        });
+        return new THREE.Points(geometry, material);
+    }
+
+    createSlingshot() {
+        const THREE = this.THREE;
+        const group = new THREE.Group();
+        const wood = new THREE.MeshStandardMaterial({
+            color: 0x866143,
+            roughness: 0.9,
+            metalness: 0.05
+        });
+        const metal = new THREE.MeshStandardMaterial({
+            color: 0x9aa8c4,
+            roughness: 0.35,
+            metalness: 0.75
+        });
+
+        const postGeo = new THREE.CylinderGeometry(8, 10, 78, 12);
+        const leftPost = new THREE.Mesh(postGeo, wood);
+        leftPost.position.set(-18, -30, 18);
+        leftPost.castShadow = true;
+        leftPost.receiveShadow = true;
+        group.add(leftPost);
+
+        const rightPost = new THREE.Mesh(postGeo, wood);
+        rightPost.position.set(18, -30, 18);
+        rightPost.castShadow = true;
+        rightPost.receiveShadow = true;
+        group.add(rightPost);
+
+        const brace = new THREE.Mesh(new THREE.BoxGeometry(56, 16, 28), wood);
+        brace.position.set(0, -72, 18);
+        brace.castShadow = true;
+        brace.receiveShadow = true;
+        group.add(brace);
+
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(20, 2.4, 10, 32), metal);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(0, -8, 20);
+        group.add(ring);
+
+        return group;
+    }
+
+    loadTextures() {
+        const THREE = this.THREE;
+        const loader = new THREE.TextureLoader();
+        const assign = (key, url) => new Promise((resolve) => {
+            loader.load(url, (texture) => {
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.anisotropy = 4;
+                this.textures[key] = texture;
+                resolve();
+            }, undefined, () => resolve());
+        });
+
+        Promise.all([
+            assign('bird', 'assets/leli-angry.png'),
+            assign('pig', 'assets/pig-target-sprite.svg'),
+            assign('wood', 'assets/wood-platform.svg'),
+            assign('particle', 'assets/explosion-particle.svg')
+        ]).then(() => {
+            this.applyLoadedTextures();
+        });
+    }
+
+    applyLoadedTextures() {
+        for (const item of this.birdPool) {
+            const mat = item.userData.body.material;
+            if (this.textures.bird) {
+                mat.map = this.textures.bird;
+                mat.transparent = true;
+                mat.needsUpdate = true;
+            }
+        }
+        for (const item of this.pigPool) {
+            const mat = item.material;
+            if (this.textures.pig) {
+                mat.map = this.textures.pig;
+                mat.transparent = true;
+                mat.needsUpdate = true;
+            }
+        }
+        for (const item of this.obstaclePool) {
+            const mat = item.material;
+            if (this.textures.wood) {
+                mat.map = this.textures.wood;
+                mat.needsUpdate = true;
+            }
+        }
+        for (const item of this.particlePool) {
+            const mat = item.material;
+            if (this.textures.particle) {
+                mat.map = this.textures.particle;
+                mat.needsUpdate = true;
+            }
+        }
+    }
+
+    setVisible(visible) {
+        if (!this.renderer) return;
+        this.renderer.domElement.classList.toggle('hidden', !visible);
+    }
+
+    onResize() {
+        this.viewport.w = 0;
+        this.viewport.h = 0;
+    }
+
+    syncViewport(w, h) {
+        if (!this.renderer || !this.camera) return;
+        if (this.viewport.w === w && this.viewport.h === h) return;
+        this.viewport.w = w;
+        this.viewport.h = h;
+        this.renderer.setSize(w, h, false);
+        this.camera.left = -w / 2;
+        this.camera.right = w / 2;
+        this.camera.top = h / 2;
+        this.camera.bottom = -h / 2;
+        this.camera.updateProjectionMatrix();
+        this.skyPlane.scale.set(w, h, 1);
+    }
+
+    toSceneX(x) {
+        return x - this.viewport.w / 2;
+    }
+
+    toSceneY(y) {
+        return this.viewport.h / 2 - y;
+    }
+
+    ensurePool(pool, group, count, factory) {
+        while (pool.length < count) {
+            const item = factory();
+            pool.push(item);
+            group.add(item);
+        }
+        for (let i = 0; i < pool.length; i++) {
+            pool[i].visible = i < count;
+        }
+    }
+
+    updateSlingshot(game) {
+        if (!this.slingGroup) return;
+        const ax = this.toSceneX(game.slingAnchor.x);
+        const ay = this.toSceneY(game.slingAnchor.y);
+        this.slingGroup.position.set(ax, ay, 10);
+
+        let tx = ax;
+        let ty = ay;
+        if (game.currentBird) {
+            tx = this.toSceneX(game.currentBird.x);
+            ty = this.toSceneY(game.currentBird.y);
+        }
+
+        const THREE = this.THREE;
+        const leftPoints = [
+            new THREE.Vector3(ax - 18, ay + 8, 36),
+            new THREE.Vector3(tx, ty, 36)
+        ];
+        const rightPoints = [
+            new THREE.Vector3(ax + 18, ay + 8, 36),
+            new THREE.Vector3(tx, ty, 36)
+        ];
+        this.bandLeft.geometry.setFromPoints(leftPoints);
+        this.bandRight.geometry.setFromPoints(rightPoints);
+        const showBands = !!game.currentBird;
+        this.bandLeft.visible = showBands;
+        this.bandRight.visible = showBands;
+    }
+
+    updateGround(game) {
+        const groundHeight = 40;
+        const centerY = this.toSceneY(game.groundY + groundHeight / 2);
+        this.groundMesh.scale.set(this.viewport.w + 260, groundHeight, 260);
+        this.groundMesh.position.set(0, centerY, -90);
+        this.floorGlow.scale.set(this.viewport.w + 220, groundHeight * 2.5, 1);
+        this.floorGlow.position.set(0, centerY + 12, -170);
+    }
+
+    updateBirds(game) {
+        const birds = [...game.birds];
+        if (game.currentBird) {
+            birds.push({
+                ...game.currentBird,
+                __ghost: !game.isDragging && !game.currentBird.launched
+            });
+        }
+
+        const THREE = this.THREE;
+        this.ensurePool(this.birdPool, this.birdGroup, birds.length, () => {
+            const group = new THREE.Group();
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0xfc799d,
+                roughness: 0.48,
+                metalness: 0.14
+            });
+            if (this.textures.bird) {
+                bodyMaterial.map = this.textures.bird;
+                bodyMaterial.transparent = true;
+            }
+            const body = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 24), bodyMaterial);
+            body.castShadow = true;
+            body.receiveShadow = true;
+            group.add(body);
+
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(1.08, 0.1, 10, 28),
+                new THREE.MeshBasicMaterial({
+                    color: 0xff8ab0,
+                    transparent: true,
+                    opacity: 0.7
+                })
+            );
+            ring.rotation.x = Math.PI / 2;
+            group.add(ring);
+
+            group.userData = { body, ring };
+            return group;
+        });
+
+        birds.forEach((bird, index) => {
+            const mesh = this.birdPool[index];
+            const radius = bird.r * 1.05;
+            mesh.scale.set(radius, radius, radius);
+            mesh.position.set(this.toSceneX(bird.x), this.toSceneY(bird.y), 34);
+            mesh.rotation.z = Math.atan2(bird.vy || 0, (bird.vx || 1)) * 0.22;
+            const ghostAlpha = bird.__ghost ? 0.38 : 1;
+            mesh.userData.body.material.opacity = ghostAlpha;
+            mesh.userData.body.material.transparent = ghostAlpha < 1 || !!this.textures.bird;
+            mesh.userData.ring.material.opacity = bird.__ghost ? 0.45 : 0.78;
+        });
+    }
+
+    updatePigs(game) {
+        const pigs = game.pigs.filter((pig) => pig.alive);
+        const THREE = this.THREE;
+        this.ensurePool(this.pigPool, this.pigGroup, pigs.length, () => {
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x7ddd7f,
+                roughness: 0.56,
+                metalness: 0.08
+            });
+            if (this.textures.pig) {
+                material.map = this.textures.pig;
+                material.transparent = true;
+            }
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 20), material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        });
+
+        pigs.forEach((pig, index) => {
+            const mesh = this.pigPool[index];
+            mesh.scale.set(pig.r * 1.25, pig.r * 1.25, pig.r * 1.25);
+            mesh.position.set(this.toSceneX(pig.x), this.toSceneY(pig.y), 22);
+            mesh.rotation.y = Math.sin(this.clock * 1.2 + index) * 0.25;
+        });
+    }
+
+    updateObstacles(game) {
+        const obstacles = game.obstacles.filter((ob) => ob.alive);
+        const THREE = this.THREE;
+        this.ensurePool(this.obstaclePool, this.obstacleGroup, obstacles.length, () => {
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x8f6a3f,
+                roughness: 0.9,
+                metalness: 0.04
+            });
+            if (this.textures.wood) {
+                material.map = this.textures.wood;
+            }
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 48), material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        });
+
+        obstacles.forEach((ob, index) => {
+            const mesh = this.obstaclePool[index];
+            const centerX = ob.x + ob.w / 2;
+            const centerY = ob.y + ob.h / 2;
+            mesh.scale.set(ob.w, ob.h, 46);
+            mesh.position.set(this.toSceneX(centerX), this.toSceneY(centerY), -6);
+            const normalizedHealth = Math.max(0, Math.min(1, (ob.health || 1) / 5));
+            mesh.material.color.setHSL(0.08, 0.42, 0.26 + normalizedHealth * 0.22);
+        });
+    }
+
+    updateParticles(game) {
+        const particles = game.particles;
+        const THREE = this.THREE;
+        this.ensurePool(this.particlePool, this.particleGroup, particles.length, () => {
+            const material = new THREE.SpriteMaterial({
+                color: 0xffd779,
+                transparent: true,
+                opacity: 0.9,
+                depthWrite: false
+            });
+            if (this.textures.particle) {
+                material.map = this.textures.particle;
+            }
+            return new THREE.Sprite(material);
+        });
+
+        particles.forEach((p, index) => {
+            const mesh = this.particlePool[index];
+            const life = Math.max(0, p.life);
+            const size = (p.size || 2) * (0.85 + life * 0.6);
+            mesh.position.set(this.toSceneX(p.x), this.toSceneY(p.y), 68);
+            mesh.scale.set(size * 3, size * 3, 1);
+            mesh.material.opacity = Math.min(1, life);
+        });
+    }
+
+    render(game, dt) {
+        if (!this.ready || !this.renderer || !this.scene || !this.camera) return false;
+        const w = game.canvas.width;
+        const h = game.canvas.height;
+        if (!w || !h) return false;
+
+        this.setVisible(true);
+        this.syncViewport(w, h);
+        this.clock += dt || 0.016;
+
+        this.starField.rotation.z = this.clock * 0.015;
+        this.starField.material.opacity = 0.65 + Math.sin(this.clock * 0.7) * 0.2;
+        this.floorGlow.material.opacity = 0.15 + Math.sin(this.clock * 1.7) * 0.08;
+
+        this.updateGround(game);
+        this.updateSlingshot(game);
+        this.updateObstacles(game);
+        this.updatePigs(game);
+        this.updateBirds(game);
+        this.updateParticles(game);
+
+        this.renderer.render(this.scene, this.camera);
+        return true;
+    }
+}
+
 AngryLeliGame = {
     canvas,
     ctx,
@@ -872,11 +1431,24 @@ AngryLeliGame = {
     nextBirdTimer: 0,
     images: {},
     imagesLoaded: false,
+    threeRenderer: null,
+    usingThreeRenderer: false,
 
     init() {
         this.loadImages();
         this.onResize();
         this.setupControls();
+        this.initThreeRenderer();
+    },
+
+    initThreeRenderer() {
+        if (this.threeRenderer) return;
+        this.threeRenderer = new AngryLeliThreeRenderer(this.canvas);
+        this.threeRenderer.init().then((ready) => {
+            if (!ready && this.threeRenderer) {
+                this.threeRenderer.setVisible(false);
+            }
+        });
     },
 
     loadImages() {
@@ -915,6 +1487,9 @@ AngryLeliGame = {
         const slingTargetX = canvas.width * 0.20; // Further right for even more pull space on the left
         this.slingAnchor.x = Math.max(200, Math.min(380, slingTargetX));
         this.slingAnchor.y = this.groundY - 60;
+        if (this.threeRenderer) {
+            this.threeRenderer.onResize();
+        }
 
         // Keep an unlaunched bird at the sling after resize
         if (this.currentBird && !this.currentBird.launched) {
@@ -1120,6 +1695,9 @@ AngryLeliGame = {
     start() {
         this.reset();
         this.isRunning = true;
+        if (this.threeRenderer) {
+            this.threeRenderer.setVisible(true);
+        }
         this.lastTime = performance.now();
         requestAnimationFrame((t) => this.loop(t));
     },
@@ -1133,6 +1711,10 @@ AngryLeliGame = {
 
     stop() {
         this.isRunning = false;
+        this.usingThreeRenderer = false;
+        if (this.threeRenderer) {
+            this.threeRenderer.setVisible(false);
+        }
     },
 
     loop(timestamp) {
@@ -1335,6 +1917,15 @@ AngryLeliGame = {
     },
 
     draw(dt) {
+        if (this.threeRenderer && this.threeRenderer.render(this, dt)) {
+            this.usingThreeRenderer = true;
+            return;
+        }
+        if (this.usingThreeRenderer && this.threeRenderer) {
+            this.threeRenderer.setVisible(false);
+            this.usingThreeRenderer = false;
+        }
+
         const ctx = this.ctx;
 
         // Draw new background using preloaded image

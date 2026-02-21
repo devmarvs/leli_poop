@@ -23,11 +23,26 @@ body {
     position: relative;
     box-shadow: 0 0 50px rgba(0, 243, 255, 0.2);
     border: 2px solid var(--neon-blue);
+    overflow: hidden;
 }
 
 canvas {
     background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
     display: block;
+}
+
+#gameCanvas {
+    position: relative;
+    z-index: 0;
+}
+
+.angry-three-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
 }
 
 #ui-layer {
@@ -41,6 +56,7 @@ canvas {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    z-index: 2;
 }
 
 #score-board {
